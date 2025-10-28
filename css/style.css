@@ -569,25 +569,55 @@ body {
     box-shadow: var(--shadow-strong);
 }
 
-.stat-icon {
+/* Ensure Stat Icon Container Centers its Content */
+.stats-grid .stat-card .stat-icon {
     width: 50px;
     height: 50px;
     border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex !important; /* Force flex display */
+    align-items: center !important; /* Force vertical center */
+    justify-content: center !important; /* Force horizontal center */
     flex-shrink: 0;
-    /* ADDED: Explicit centering */
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
+    overflow: hidden; /* Prevent icon overflow if too large */
 }
 
-/* ADDED: Icon size rule */
-.stat-icon svg,
-.stat-icon i {
-    width: 24px; 
-    height: 24px; 
+/* Ensure Icon Size and Alignment within Stat Icon */
+.stats-grid .stat-card .stat-icon svg {
+    width: 30px; /* Larger size */
+    height: 30px; /* Larger size */
+    display: block; /* Ensure SVG behaves like a block */
+    margin: auto; /* Another way to center */
+}
+.stats-grid .stat-card .stat-icon i {
+    font-size: 30px; /* Larger size */
+    line-height: 1;  /* Reset line height */
+    margin: auto; /* Another way to center */
+    text-align: center; /* Ensure icon is centered if it behaves like text */
+}
+
+/* --- Styles for Smaller Stat Cards (Schedule Management) --- */
+.schedule-stats-grid .stat-card-small .stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex !important; /* Ensure flex centering */
+    align-items: center !important; /* Ensure vertical center */
+    justify-content: center !important; /* Ensure horizontal center */
+    flex-shrink: 0;
+    overflow: hidden;
+}
+/* Adjust icon size within the smaller cards */
+.schedule-stats-grid .stat-card-small .stat-icon svg {
+     width: 24px;     /* Increased size */
+     height: 24px;    /* Increased size */
+     display: block;
+     margin: auto;
+}
+.schedule-stats-grid .stat-card-small .stat-icon i {
+     font-size: 24px; /* Increased size */
+     line-height: 1;
+     margin: auto;
+     text-align: center;
 }
 
 
@@ -2108,8 +2138,10 @@ tbody tr:hover {
 
 .scanner-icon-badge {
     position: absolute;
-    top: -5px;
-    right: -5px;
+    /* CHANGE these */
+    top: -5%;   /* Position relative to parent height */
+    right: -5%; /* Position relative to parent width */
+    /* Make sure these are present */
     width: 20px;
     height: 20px;
     background: #dc2626; /* Red */
@@ -2121,6 +2153,7 @@ tbody tr:hover {
     align-items: center;
     justify-content: center;
     border: 2px solid white;
+    line-height: 1;
 }
 
 .scanner-status-text {
