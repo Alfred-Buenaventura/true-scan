@@ -55,30 +55,42 @@
     --emerald-50: #ecfdf5;
     --emerald-100: #d1fae5;
     --emerald-200: #a7f3d0;
+    --emerald-400: #34d399; /* Added from fingerprint page */
     --emerald-500: #10b981;
     --emerald-600: #059669;
     --emerald-700: #047857;
     --emerald-800: #065f46;
+    --yellow-50: #FFFBEB; /* Added for scanner widget */
     --yellow-100: #fef3c7;
+    --yellow-200: #FDE68A; /* Added for scanner widget */
     --yellow-400: #fbbf24;
+    --yellow-700: #B45309; /* Added for scanner widget */
     --gray-50: #f9fafb;
     --gray-100: #f3f4f6;
     --gray-200: #e5e7eb;
     --gray-300: #d1d5db;
+    --gray-400: #9ca3af; /* Added for login page */
+    --gray-500: #6b7280; /* Added for login page */
     --gray-600: #4b5563;
     --gray-700: #374151;
     --gray-800: #1f2937;
     --gray-900: #111827;
     --red-50: #fef2f2;
+    --red-200: #FECACA; /* Added for scanner widget */
     --red-600: #dc2626;
+    --red-700: #B91C1C; /* Added for scanner widget */
     --blue-50: #eff6ff;
+    --blue-200: #BFDBFE; /* Added for fingerprint page */
     --blue-600: #3b82f6;
     --blue-700: #1e40af;
     --transition-fast: all 0.2s ease-in-out;
     --transition-medium: all 0.3s ease-in-out; /* Added for sidebar */
     --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.08);
     --shadow-strong: 0 8px 24px rgba(0, 0, 0, 0.1);
-    --sidebar-width: 320px; /* NEW: Even Wider sidebar */
+    
+    /* MODIFIED: Sidebar width adjusted */
+    --sidebar-width: 400px; 
+    
     --sidebar-collapsed-width: 80px; /* Keep collapsed width */
 }
 
@@ -192,22 +204,27 @@ body {
     flex-grow: 1; /* Allow logo area to take available space */
 }
 
-.sidebar-logo-circle {
+/* UPDATED Sidebar Logo Icon Style */
+.sidebar-logo-icon {
     width: 44px; /* Slightly smaller */
     height: 44px;
-    background: white;
-    border-radius: 50%;
+    background: var(--emerald-600); /* CHANGED: Green background */
+    border-radius: 10px; /* CHANGED: Rounded square */
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    border: 1px solid var(--emerald-500); /* Added subtle border */
 }
 
-.sidebar-logo-circle svg {
-    width: 24px; /* Slightly smaller */
-    height: 24px;
-    color: var(--emerald-600);
+.sidebar-logo-icon i, /* UPDATED: Changed from svg to i */
+.sidebar-logo-icon svg { /* Keep svg for fallback if needed */
+    font-size: 26px; /* Control size with font-size */
+    color: white; /* White icon color */
+    line-height: 1; /* Helps with vertical alignment */
+    fill: white; /* For SVG */
 }
+
 
 .sidebar-title {
     overflow: hidden; /* Hide title when collapsing */
@@ -285,6 +302,7 @@ body {
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     flex-shrink: 0;
     transition: padding var(--transition-medium);
+    position: relative; /* Make sidebar-footer relative to position menu inside it */
 }
 
 .user-info {
@@ -296,10 +314,11 @@ body {
     transition: opacity var(--transition-medium), padding var(--transition-medium), margin var(--transition-medium);
 }
 
+/* UPDATED: User info layout adjusted */
 .user-info-inner {
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: space-between; /* This pushes button to the right */
 }
 
 .user-avatar {
@@ -316,7 +335,10 @@ body {
     transition: margin var(--transition-medium);
 }
 
+/* UPDATED: User details margin adjusted */
 .user-details {
+     margin-left: 12px;
+     flex-grow: 1; /* Allows it to take up available space */
      overflow: hidden;
      white-space: nowrap;
      transition: opacity 0.2s ease-in-out;
@@ -341,21 +363,27 @@ body {
     text-overflow: ellipsis;
 }
 
+/* UPDATED: Logout button style */
 .logout-btn {
     width: 100%;
-    background: transparent;
+    background: var(--emerald-600); /* CHANGED */
     color: white;
-    border: 2px solid white;
+    border: 2px solid var(--emerald-500); /* CHANGED */
     padding: 10px;
     border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
-    transition: all var(--transition-fast); /* Include width/padding in transition */
+    transition: all var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
     overflow: hidden;
+}
+
+.logout-btn:hover {
+    background: white;
+    color: var(--emerald-700);
 }
 
 .logout-icon {
@@ -369,11 +397,6 @@ body {
 .logout-text {
     transition: opacity 0.2s ease-in-out;
     white-space: nowrap;
-}
-
-.logout-btn:hover {
-    background: white;
-    color: var(--emerald-700);
 }
 
 /* Sidebar Toggle Button (in header) */
@@ -499,7 +522,7 @@ body {
 .main-header {
     background: white;
     border-bottom: 1px solid var(--gray-200);
-    padding: 20px 28px;
+    padding: 1.75rem 2rem; /* Increased padding */
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -507,16 +530,17 @@ body {
     position: sticky;
     top: 0;
     z-index: 10;
+    gap: 1.5rem; /* Adds space between title and actions */
 }
 
 .header-title h2 {
-    font-size: 22px;
+    font-size: 1.75rem; /* Larger title */
     color: var(--emerald-800);
     font-weight: 700;
 }
 
 .header-title p {
-    font-size: 14px;
+    font-size: 1rem; /* Larger subtitle */
     color: var(--gray-600);
 }
 
@@ -553,7 +577,19 @@ body {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    /* ADDED: Explicit centering */
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
 }
+
+/* ADDED: Icon size rule */
+.stat-icon svg,
+.stat-icon i {
+    width: 24px; 
+    height: 24px; 
+}
+
 
 .stat-icon.emerald {
     background: var(--emerald-100);
@@ -579,6 +615,9 @@ body {
     font-size: 28px;
     font-weight: 700;
     color: var(--gray-800);
+}
+.stat-value.red { /* Specific color for red stat value */
+    color: var(--red-600);
 }
 
 /* === Card === */
@@ -638,41 +677,6 @@ tbody tr {
 
 tbody tr:hover {
     background: var(--emerald-50);
-}
-
-/* === Device Status === */
-.device-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 16px;
-    border-radius: 10px;
-    font-size: 13px;
-    box-shadow: var(--shadow-soft);
-}
-
-.device-status.online {
-    background: var(--emerald-50);
-    color: var(--emerald-700);
-}
-
-.device-status.offline {
-    background: var(--red-50);
-    color: var(--red-600);
-}
-
-.status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-}
-
-.status-dot.online {
-    background: var(--emerald-500);
-}
-
-.status-dot.offline {
-    background: var(--red-600);
 }
 
 /* ====== MODERN DASHBOARD STYLING (GLOBAL) ====== */
@@ -784,14 +788,18 @@ tbody tr:hover {
     font-size: 0.9rem;
 }
 
+/* UPDATED Form Control Styles */
 .form-control {
-    padding: 0.7rem 0.875rem;
+    padding: 0.75rem 0.875rem; /* Standardized vertical padding */
     border: 1px solid var(--gray-300);
     border-radius: 0.5rem;
     font-size: 0.95rem;
     width: 100%;
     transition: all 0.2s ease;
+    box-sizing: border-box; /* Include padding/border in height */
+    line-height: 1.5; /* Ensure consistent line height */
 }
+
 
 .form-control:focus {
     border-color: var(--emerald-500);
@@ -803,7 +811,17 @@ tbody tr:hover {
     color: #9ca3af;
 }
 
+/* --- New Rule for Readonly Inputs --- */
+.form-control[readonly] {
+    background-color: var(--gray-50) !important; /* Light tint */
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); /* Inner shadow */
+    cursor: not-allowed; /* Show disabled cursor */
+    color: var(--gray-600); /* Slightly fade text */
+}
+
+
 /* Buttons */
+/* UPDATED Button Styles */
 .btn {
     display: inline-flex;
     align-items: center;
@@ -811,47 +829,65 @@ tbody tr:hover {
     gap: 0.5rem;
     font-weight: 600;
     border-radius: 0.5rem;
-    padding: 0.6rem 1rem;
+    padding: 0.75rem 1rem; /* Standardized vertical padding */
     cursor: pointer;
-    border: none;
+    border: 1px solid transparent; /* Add transparent border for consistent height */
     transition: background 0.2s;
     text-decoration: none;
+    box-sizing: border-box; /* Include padding/border in height */
+    line-height: 1.5; /* Ensure consistent line height */
 }
 
 .btn-primary {
     background: var(--emerald-600);
     color: white;
+    border-color: var(--emerald-600); /* Match background */
 }
-
 .btn-primary:hover {
     background: var(--emerald-700);
+    border-color: var(--emerald-700);
 }
-
 .btn-secondary {
-    background: #e5e7eb;
-    color: #111827;
+    background: var(--gray-200); /* Lighter secondary */
+    color: var(--gray-700);
+    border-color: var(--gray-300); /* Add border */
 }
-
 .btn-secondary:hover {
-    background: #d1d5db;
+    background: var(--gray-300);
+    border-color: var(--gray-400);
 }
 
 .btn-success {
     background: #10b981;
     color: white;
+    border-color: #10b981;
 }
 
 .btn-success:hover {
     background: #059669;
+    border-color: #059669;
 }
 
 .btn-warning {
     background: #f59e0b;
     color: white;
+    border-color: #f59e0b;
 }
 
 .btn-warning:hover {
     background: #d97706;
+    border-color: #d97706;
+}
+
+/* ADDED: Red danger button style */
+.btn-danger {
+    background: var(--red-600);
+    color: white;
+    border-color: var(--red-600);
+}
+.btn-danger:hover {
+    background: #b91c1c; /* Darker red */
+    border-color: #b91c1c;
 }
 
 .btn-sm {
@@ -1109,32 +1145,41 @@ tbody tr:hover {
 
 /* ====== MODAL STYLING ====== */
 
-/* Modal Overlay */
+/* UPDATED Modal Positioning */
 .modal {
-    display: none;
+    display: none; /* Hidden by default */
     position: fixed;
     z-index: 1000;
-    left: 0;
     top: 0;
-    width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0,0,0,0.5); /* Dim background */
     backdrop-filter: blur(4px);
-    align-items: center;
-    justify-content: center;
-    animation: fadeIn 0.3s ease;
+    
+    /* --- Positioning relative to sidebar --- */
+    left: var(--sidebar-width); /* Start after the expanded sidebar */
+    width: calc(100% - var(--sidebar-width)); /* Fill remaining width */
+    
+    /* --- Centering within the adjusted area --- */
+    align-items: center; /* Vertical centering */
+    justify-content: center; /* Horizontal centering */
+    
+    animation: fadeInModal 0.3s ease;
+    transition: left 0.3s ease, width 0.3s ease; /* Smooth transition when sidebar collapses */
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+/* --- Adjust modal position when sidebar is collapsed --- */
+.dashboard-container.sidebar-collapsed .modal {
+    left: var(--sidebar-collapsed-width); /* Start after the collapsed sidebar */
+    width: calc(100% - var(--sidebar-collapsed-width)); /* Fill remaining width */
 }
+
+@keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } } /* Renamed animation */
 
 /* Modal Content */
 .modal-content {
     background-color: white;
-    margin: auto;
+    margin: auto; /* Still needed for older browsers */
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     width: 90%;
@@ -1250,6 +1295,14 @@ tbody tr:hover {
         align-items: flex-start;
         gap: 8px;
     }
+    
+    /* Stack header actions */
+    .header-actions {
+        flex-wrap: wrap;
+        width: 100%;
+        justify-content: flex-start;
+    }
+    #live-time-date { text-align: left; }
 
     .stats-grid {
         grid-template-columns: 1fr;
@@ -1283,6 +1336,17 @@ tbody tr:hover {
         max-height: 90vh;
         margin: 1rem;
     }
+    
+    /* Adjust modal position for mobile (no sidebar) */
+    .modal {
+        left: 0;
+        width: 100%;
+    }
+    .dashboard-container.sidebar-collapsed .modal {
+        left: 0;
+        width: 100%;
+    }
+
 
     .modal-body {
         padding: 1rem;
@@ -1822,4 +1886,504 @@ tbody tr:hover {
     flex-direction: column;
     gap: 10px;
     align-items: flex-end;
+}
+
+/* === STYLES FOR FOOTER BUTTONS (FROM PREVIOUS STEP) === */
+
+.logout-btn {
+    width: 100%;
+    background: var(--emerald-600); /* CHANGED */
+    color: white;
+    border: 2px solid var(--emerald-500); /* CHANGED */
+    padding: 10px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    overflow: hidden;
+}
+
+.logout-btn:hover {
+    background: white;
+    color: var(--emerald-700);
+}
+
+/* Adjust user info layout to make space for button */
+.user-info-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* This pushes button to the right */
+}
+
+/* Give user details a margin to replace the old 'gap' */
+.user-details {
+     margin-left: 12px;
+     flex-grow: 1; /* Allows it to take up available space */
+     overflow: hidden;
+     white-space: nowrap;
+     transition: opacity 0.2s ease-in-out;
+}
+
+
+/* New Settings Button Style */
+.user-settings-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: none;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    flex-shrink: 0; /* Prevents it from shrinking */
+    margin-left: 8px; /* Adds space */
+}
+
+.user-settings-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.user-settings-btn i {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+/* === NEW STYLES FOR SETTINGS POP-UP MENU === */
+
+/* Make sidebar-footer relative to position menu inside it */
+.sidebar-footer {
+    position: relative;
+}
+
+#settings-menu {
+    display: none; /* Hidden by default */
+    position: absolute;
+    /* Position it above the user-info and logout button */
+    bottom: 165px; 
+    left: 16px;
+    right: 16px;
+    
+    background: #f9fafb; /* Light background */
+    color: var(--gray-800);
+    border-radius: 12px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    padding: 10px;
+    z-index: 10;
+    animation: popUp 0.2s ease-out;
+}
+
+#settings-menu.active {
+    display: block; /* Show menu */
+}
+
+.settings-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    color: var(--gray-700);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+    white-space: nowrap;
+}
+
+.settings-menu-item:hover {
+    background: var(--emerald-50);
+    color: var(--emerald-700);
+}
+
+.settings-menu-item i {
+    width: 20px;
+    text-align: center;
+    color: var(--emerald-600);
+}
+
+.settings-menu-item:hover i {
+    color: var(--emerald-700);
+}
+
+/* Pop-up animation */
+@keyframes popUp {
+    from { 
+        opacity: 0; 
+        transform: translateY(10px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+/* === Header Sizing & New Actions === */
+
+.main-header {
+    padding: 1.75rem 2rem; /* Increased padding */
+    gap: 1.5rem; /* Adds space between title and actions */
+}
+
+.header-title h2 {
+    font-size: 1.75rem; /* Larger title */
+    font-weight: 700;
+}
+
+.header-title p {
+    font-size: 1rem; /* Larger subtitle */
+}
+
+/* New wrapper for all right-side items */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+/* Styles for the live time/date */
+#live-time-date {
+    text-align: right;
+    color: var(--gray-700);
+    min-width: 180px; /* Prevents layout shift */
+}
+
+#live-time {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--emerald-800);
+}
+
+#live-date {
+    font-size: 0.9rem;
+    color: var(--gray-600);
+}
+
+/* Styles for the Faculty ID badge */
+.header-user-id {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--gray-100);
+    color: var(--gray-700);
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.6rem 0.85rem;
+    border-radius: 8px;
+    border: 1px solid var(--gray-200);
+}
+
+.header-user-id i {
+    color: var(--emerald-600);
+    font-size: 1.1rem;
+}
+
+/* === NEW: Header Scanner Status Widget === */
+
+.header-scanner-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid;
+    min-width: 320px;
+}
+
+.scanner-status-icon {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.scanner-icon-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 20px;
+    height: 20px;
+    background: #dc2626; /* Red */
+    color: white;
+    border-radius: 50%;
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+}
+
+.scanner-status-text {
+    flex-grow: 1; /* Takes up middle space */
+}
+
+.scanner-status-text-main {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.scanner-status-text-sub {
+    font-size: 0.85rem;
+}
+
+.scanner-status-details {
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.scanner-status-badge {
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+
+.scanner-status-action {
+    font-size: 0.8rem;
+    margin-top: 2px;
+}
+
+
+/* --- Offline State (Default) --- */
+.header-scanner-status.offline {
+    background: #FFFBEB; /* Light Yellow */
+    border-color: #FDE68A; /* Yellow Border */
+}
+.header-scanner-status.offline .scanner-status-icon {
+    background: #F59E0B; /* Gold */
+    color: white;
+}
+.header-scanner-status.offline .scanner-status-text-main {
+    color: #854D0E; /* Dark Gold Text */
+}
+.header-scanner-status.offline .scanner-status-text-sub {
+    color: #B45309;
+}
+.header-scanner-status.offline .scanner-status-badge {
+    background: #F59E0B; /* Gold */
+    color: white;
+}
+.header-scanner-status.offline .scanner-status-action {
+    color: #B45309;
+}
+.header-scanner-status.offline .scanner-icon-badge {
+    display: flex; /* Show badge */
+}
+
+
+/* --- Online State (Set by JS) --- */
+.header-scanner-status.online {
+    background: #F0FDF4; /* Light Green */
+    border-color: #A7F3D0; /* Green Border */
+}
+.header-scanner-status.online .scanner-status-icon {
+    background: var(--emerald-600); /* Green */
+    color: white;
+}
+.header-scanner-status.online .scanner-status-text-main {
+    color: var(--emerald-800);
+}
+.header-scanner-status.online .scanner-status-text-sub {
+    color: var(--emerald-700);
+}
+.header-scanner-status.online .scanner-status-badge {
+    background: var(--emerald-600); /* Green */
+    color: white;
+}
+.header-scanner-status.online .scanner-status-action {
+    color: var(--emerald-700);
+}
+.header-scanner-status.online .scanner-icon-badge {
+    display: none; /* Hide badge */
+}
+
+/* === WIDER/IMPROVED DEVICE STATUS === */
+
+.device-status {
+    /* Adds padding to make the box wider */
+    padding: 0.6rem 1.25rem;
+    /* Sets a minimum width - CHANGED */
+    min-width: 250px; 
+    /* Aligns items to the left */
+    justify-content: flex-start; 
+}
+
+/* Styles the new Font Awesome icon */
+.device-status-icon {
+    font-size: 1.2rem; /* Made the icon smaller */
+    line-height: 1; /* Helps with alignment */
+}
+
+/* === NEW: Device Icon Container === */
+
+.device-icon-container {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px; /* Rounded border */
+    flex-shrink: 0; /* Prevents it from shrinking */
+}
+
+/* Online state */
+.device-status.online .device-icon-container {
+    background: white;
+    border: 1px solid var(--emerald-200);
+}
+
+/* Offline state */
+.device-status.offline .device-icon-container {
+    background: white;
+    border: 1px solid var(--red-200);
+}
+
+/* === Larger Text for Complete Registration Table === */
+.larger-text-table td, 
+.larger-text-table th {
+    font-size: 1rem; /* Adjust size as needed */
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+/* === Basic Modal Styles (Add if not already present) === */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed;
+    z-index: 1000;
+    top: 0;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.5); /* Dim background */
+    backdrop-filter: blur(4px);
+    
+    /* --- Positioning relative to sidebar --- */
+    left: var(--sidebar-width); /* Start after the expanded sidebar */
+    width: calc(100% - var(--sidebar-width)); /* Fill remaining width */
+    
+    /* --- Centering within the adjusted area --- */
+    align-items: center; /* Vertical centering */
+    justify-content: center; /* Horizontal centering */
+    
+    animation: fadeInModal 0.3s ease;
+    transition: left 0.3s ease, width 0.3s ease; /* Smooth transition when sidebar collapses */
+}
+
+/* --- Adjust modal position when sidebar is collapsed --- */
+.dashboard-container.sidebar-collapsed .modal {
+    left: var(--sidebar-collapsed-width); /* Start after the collapsed sidebar */
+    width: calc(100% - var(--sidebar-collapsed-width)); /* Fill remaining width */
+}
+
+.modal-content {
+    background-color: #fff;
+    margin: auto;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    width: 90%;
+    max-width: 550px; /* Default max width */
+    animation: slideInModal 0.3s ease-out;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-content.modal-small {
+    max-width: 450px;
+}
+
+.modal-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--gray-200);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--gray-500);
+    padding: 0.25rem;
+}
+.modal-close:hover {
+     color: var(--gray-800);
+}
+
+.modal-body {
+    padding: 1.5rem;
+    flex-grow: 1;
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--gray-200);
+    background-color: var(--gray-50);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    border-radius: 0 0 12px 12px;
+}
+
+/* Modal Animations */
+@keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideInModal { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* === Special Layout for Register Button (Complete Reg Page) === */
+
+.register-btn-special {
+    position: relative; /* Enable absolute positioning for icon */
+    justify-content: center; /* Keep the span centered */
+    padding-left: 2.5rem; /* Add space on the left for the icon */
+    text-decoration: none; /* Ensure no underline */
+}
+
+.register-btn-special i {
+    position: absolute; /* Position icon independently */
+    left: 0.75rem;      /* Distance from the left edge */
+    top: 50%;
+    transform: translateY(-50%); /* Vertically center */
+    font-size: 1em; /* Match text size or adjust as needed */
+}
+
+.register-btn-special span {
+    /* The span is automatically centered by justify-content: center on the parent */
+    display: inline-block; 
+}
+
+/* === Logout Confirmation Modal Specific Styles === */
+
+#logoutConfirmModal .modal-header {
+    background-color: var(--gray-50); /* Optional: different header background */
+}
+
+#logoutConfirmModal .modal-header h3 {
+     color: var(--gray-800);
+}
+
+/* === Force consistent height for select AND date elements in filters === */
+form select.form-control,
+form input[type="date"].form-control {
+    height: calc(1.5em + 1.5rem + 2px); /* Matches line-height + padding + border */
 }
