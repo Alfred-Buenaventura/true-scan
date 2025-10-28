@@ -135,6 +135,21 @@ function calculateHours(start, end) {
     }
 }
 
+// --- NEW: Modal Helper Functions ---
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'flex';
+}
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'none';
+}
+
+// --- NEW: Logout Confirmation Modal Function ---
+function showLogoutConfirm() {
+    openModal('logoutConfirmModal');
+}
+
 
 // Add toast styles (ensure this runs only once)
 if (!document.getElementById('toastStyles')) {
@@ -191,14 +206,14 @@ if (!document.getElementById('toastStyles')) {
 }
 
 // ===========================================
-// Sidebar Toggle Logic
+// Main DOMContentLoaded
 // ===========================================
 document.addEventListener('DOMContentLoaded', function() {
+    const dashboardContainer = document.getElementById('dashboardContainer');
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.getElementById('mainContent');
     const toggleButton = document.getElementById('sidebarToggle');
     const toggleIconContainer = toggleButton ? toggleButton.querySelector('svg') : null; // Get SVG container
-    const dashboardContainer = document.getElementById('dashboardContainer');
 
     // SVG icons (Solid Style)
     const hamburgerIconSVG = `
@@ -208,7 +223,9 @@ document.addEventListener('DOMContentLoaded', function() {
         <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/>
     `;
 
-    // Function to set sidebar state
+    // ===========================================
+    // Sidebar Toggle Logic
+    // ===========================================
     const setSidebarState = (isCollapsed) => {
         if (!sidebar || !mainContent || !dashboardContainer || !toggleIconContainer) return; // Ensure elements exist
 
@@ -230,9 +247,165 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add event listener to the toggle button
     if (toggleButton) {
         toggleButton.addEventListener('click', () => {
+            if (!dashboardContainer) return;
             const shouldCollapse = !dashboardContainer.classList.contains('sidebar-collapsed');
             setSidebarState(shouldCollapse);
         });
+    }
+
+    // ===========================================
+    // Settings Menu Toggle
+    // ===========================================
+    const settingsBtn = document.getElementById('userSettingsBtn');
+    const settingsMenu = document.getElementById('settings-menu');
+
+    if (settingsBtn && settingsMenu) {
+        settingsBtn.addEventListener('click', function(event) {
+            // Toggle the 'active' class on the menu
+            settingsMenu.classList.toggle('active');
+            // Stop the click from immediately closing the menu
+            event.stopPropagation();
+        });
+
+        // Click outside to close
+        document.addEventListener('click', function(event) {
+            // If the menu is active and the click was NOT on the menu
+            if (settingsMenu.classList.contains('active') && !settingsMenu.contains(event.target)) {
+                settingsMenu.classList.remove('active');
+            }
+        });
+    }
+
+    // ===========================================
+    // Profile Page Edit Toggle
+    // ===========================================
+    const editProfileBtn = document.getElementById('editProfileBtn');
+    const editModeButtons = document.getElementById('editModeButtons');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const profileInputs = [
+        document.getElementById('firstNameInput'),
+        document.getElementById('lastNameInput'),
+        document.getElementById('middleNameInput'),
+        document.getElementById('emailInput'),
+        document.getElementById('phoneInput')
+    ];
+
+    // Check if we are on the profile page
+    if (editProfileBtn && editModeButtons && cancelEditBtn) {
+
+        // Store original values in case of cancel
+        let originalValues = {};
+
+        editProfileBtn.addEventListener('click', () => {
+            originalValues = {}; // Clear previous values
+            profileInputs.forEach(input => {
+                if (input) {
+                    input.removeAttribute('readonly');
+                    originalValues[input.id] = input.value; // Store current value
+                }
+            });
+            // Show Save/Cancel buttons
+            editProfileBtn.style.display = 'none';
+            editModeButtons.style.display = 'flex';
+        });
+
+        cancelEditBtn.addEventListener('click', () => {
+            profileInputs.forEach(input => {
+                if (input) {
+                    input.setAttribute('readonly', true);
+                    input.value = originalValues[input.id] || input.value; // Restore original value
+                }
+            });
+            // Show Edit button
+            editProfileBtn.style.display = 'block';
+            editModeButtons.style.display = 'none';
+        });
+    }
+
+    // ===========================================
+    // Live Time and Date Display
+    // ===========================================
+    const timeEl = document.getElementById('live-time');
+    const dateEl = document.getElementById('live-date');
+
+    function updateLiveTime() {
+        if (!timeEl || !dateEl) return; // Only run if elements exist
+
+        const now = new Date();
+
+        // Format time: 1:30 PM
+        const timeString = now.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+
+        // Format date: Tuesday, October 28
+        const dateString = now.toLocaleDateString('en-US', {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        timeEl.textContent = timeString;
+        dateEl.textContent = dateString;
+    }
+
+    // Update immediately on load
+    updateLiveTime();
+    // Update every second
+    setInterval(updateLiveTime, 1000);
+
+    // ===========================================
+    // Live Fingerprint Scanner Status Check
+    // ===========================================
+    const scannerWidget = document.getElementById('scanner-status-widget');
+
+    // Only run this code if the widget exists on the page
+    if (scannerWidget) {
+        const statusTextSub = scannerWidget.querySelector('.scanner-status-text-sub');
+        const statusBadge = scannerWidget.querySelector('.scanner-status-badge');
+        const statusAction = scannerWidget.querySelector('.scanner-status-action');
+        const iconBadge = scannerWidget.querySelector('.scanner-icon-badge');
+
+        // This IP and Port should match your ZKTeco WebSocket service
+        const socket = new WebSocket("ws://127.0.0.1:8080");
+
+        // --- Connection Successful ---
+        socket.onopen = function() {
+            scannerWidget.classList.add('online');
+            scannerWidget.classList.remove('offline');
+
+            if (statusTextSub) statusTextSub.textContent = 'Device Connected';
+            if (statusBadge) statusBadge.textContent = 'ONLINE';
+            if (statusAction) statusAction.textContent = 'Ready to scan';
+            if (iconBadge) iconBadge.style.display = 'none';
+
+            // Send a simple ping to keep connection alive or check status
+            socket.send(JSON.stringify({ command: "status" }));
+        };
+
+        // --- Connection Failed ---
+        socket.onerror = function() {
+            scannerWidget.classList.remove('online');
+            scannerWidget.classList.add('offline');
+
+            if (statusTextSub) statusTextSub.textContent = 'Device Not Detected';
+            if (statusBadge) statusBadge.textContent = 'OFFLINE';
+            if (statusAction) statusAction.textContent = 'Check connection';
+            if (iconBadge) iconBadge.style.display = 'flex';
+        };
+
+        // --- Connection Closed (e.g., if service stops) ---
+        socket.onclose = function() {
+             scannerWidget.classList.remove('online');
+            scannerWidget.classList.add('offline');
+
+            if (statusTextSub) statusTextSub.textContent = 'Connection Lost';
+            if (statusBadge) statusBadge.textContent = 'OFFLINE';
+            if (statusAction) statusAction.textContent = 'Please refresh';
+            if (iconBadge) iconBadge.style.display = 'flex';
+        };
     }
 
     // Auto-hide alerts (moved inside DOMContentLoaded)
@@ -257,7 +430,16 @@ document.addEventListener('DOMContentLoaded', function() {
             item.classList.remove('active'); // Ensure others are not active
         }
     });
-});
+
+    // --- Close modals when clicking outside ---
+    window.addEventListener('click', function(event) {
+        // Check if the clicked element has the 'modal' class (the overlay)
+        if (event.target.classList.contains('modal')) {
+             closeModal(event.target.id); // Close the specific modal that was clicked
+        }
+    });
+
+}); // END OF DOMContentLoaded
 
 
 // Prevent form resubmission on refresh
@@ -276,5 +458,9 @@ window.BPC = {
     confirmAction,
     validateEmail,
     validatePhone,
-    calculateHours
+    calculateHours,
+    // Add modal functions to global scope if needed elsewhere, otherwise keep them local
+    openModal,
+    closeModal,
+    showLogoutConfirm
 };
