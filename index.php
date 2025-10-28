@@ -2,24 +2,43 @@
 require_once 'config.php';
 
 // --- Page Variables ---
-// These are now passed to includes/header.php to build the header
 $pageTitle = 'Dashboard';
 $pageSubtitle = 'Welcome back, System Administrator!';
 // --- End Page Variables ---
 
-require_once 'includes/header.php';
+require_once 'includes/header.php'; // Include header first
 
-// Example data (replace with dynamic DB values)
-$totalUsers = 2;
-$activeToday = 0;
-$pendingRegistrations = 1;
+$db = db(); // Get database connection
 
-// Example activity log (replace with DB query)
-$activityLogs = [
-    ['action' => 'Login', 'detail' => 'User logged in', 'time' => '10:56 AM'],
-    ['action' => 'Logout', 'detail' => 'User logged out', 'time' => '10:42 AM'],
-    ['action' => 'User Created', 'detail' => 'Created user: TEACHER01', 'time' => '10:36 AM'],
-];
+// --- Fetch Dashboard Data ---
+
+// Example data (replace with dynamic DB values if needed later)
+// Fetch counts directly from the DB
+$totalUsersResult = $db->query("SELECT COUNT(*) as c FROM users WHERE status='active'");
+$totalUsers = $totalUsersResult ? $totalUsersResult->fetch_assoc()['c'] : 0;
+
+// Placeholder for Active Today - Requires logic based on attendance_records for the current date
+$activeToday = 0; 
+
+$pendingRegResult = $db->query("SELECT COUNT(*) AS c FROM users WHERE status='active' AND fingerprint_registered=0");
+$pendingRegistrations = $pendingRegResult ? $pendingRegResult->fetch_assoc()['c'] : 0;
+
+
+// Fetch the latest 10 activity logs
+$activityLogs = [];
+$logQuery = "
+    SELECT al.*, u.first_name, u.last_name 
+    FROM activity_logs al
+    LEFT JOIN users u ON al.user_id = u.id
+    ORDER BY al.created_at DESC
+    LIMIT 5 
+";
+$logResult = $db->query($logQuery);
+if ($logResult) {
+    $activityLogs = $logResult->fetch_all(MYSQLI_ASSOC);
+}
+// --- End Fetch Dashboard Data ---
+
 ?>
 
 <div class="main-body">
@@ -40,7 +59,7 @@ $activityLogs = [
             </div>
             <div class="stat-details">
                 <p>Active Today</p>
-                <div class="stat-value"><?= $activeToday ?></div>
+                <div class="stat-value"><?= $activeToday ?></div> 
             </div>
         </div>
 
@@ -60,24 +79,33 @@ $activityLogs = [
             <h3>Recent Activity</h3>
         </div>
         <div class="card-body">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Action</th>
-                        <th>Details</th>
-                        <th>Time</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($activityLogs as $log): ?>
+            <?php if (empty($activityLogs)): ?>
+                <p style="text-align: center; color: var(--gray-500); padding: 2rem;">No recent activity found.</p>
+            <?php else: ?>
+                <table>
+                    <thead>
                         <tr>
-                            <td><?= htmlspecialchars($log['action']) ?></td>
-                            <td><?= htmlspecialchars($log['detail']) ?></td>
-                            <td><?= htmlspecialchars($log['time']) ?></td>
+                            <th>Action</th>
+                            <th>Details</th>
+                            <th>User</th>
+                            <th>Time & Date</th> 
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($activityLogs as $log): ?>
+                            <tr>
+                                <td><?= htmlspecialchars($log['action']) ?></td>
+                                <td><?= htmlspecialchars($log['description']) // Use 'description' field ?></td>
+                                <td><?= htmlspecialchars(($log['first_name'] ?? '') . ' ' . ($log['last_name'] ?? 'System')) ?></td> 
+                                <td><?= date('M d, Y g:i A', strtotime($log['created_at'])) ?></td> 
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+             <div style="text-align: right; margin-top: 1rem;">
+                 <a href="activity_log.php" class="btn btn-sm btn-secondary">View All Activity &rarr;</a>
+             </div>
         </div>
     </div>
 </div>
