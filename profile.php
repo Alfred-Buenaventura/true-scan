@@ -13,10 +13,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     $middleName = clean($_POST['middle_name']);
     $email = clean($_POST['email']);
     $phone = clean($_POST['phone']);
-    
+
     $stmt = $db->prepare("UPDATE users SET first_name=?, last_name=?, middle_name=?, email=?, phone=? WHERE id=?");
     $stmt->bind_param("sssssi", $firstName, $lastName, $middleName, $email, $phone, $_SESSION['user_id']);
-    
+
     if ($stmt->execute()) {
         $_SESSION['full_name'] = $firstName . ' ' . $lastName;
         $_SESSION['first_name'] = $firstName;
@@ -40,13 +40,12 @@ include 'includes/header.php';
     <?php if ($error): ?>
         <div class="alert alert-error"><?= $error ?></div>
     <?php endif; ?>
-    
+
     <?php if ($success): ?>
         <div class="alert alert-success"><?= $success ?></div>
     <?php endif; ?>
 
     <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px;">
-        <!-- Profile Card -->
         <div class="card">
             <div class="card-body" style="text-align: center;">
                 <div style="width: 120px; height: 120px; background: var(--emerald-500); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 48px; font-weight: 700; color: white;">
@@ -56,7 +55,7 @@ include 'includes/header.php';
                     <?= htmlspecialchars($user['first_name'] . ' ' . $user['last_name']) ?>
                 </h3>
                 <p style="color: var(--gray-600); margin-bottom: 16px;"><?= htmlspecialchars($user['role']) ?></p>
-                
+
                 <div style="background: var(--gray-50); padding: 16px; border-radius: 12px; text-align: left;">
                     <div style="margin-bottom: 12px;">
                         <p style="font-size: 12px; color: var(--gray-600); margin-bottom: 4px;">Faculty ID</p>
@@ -96,38 +95,42 @@ include 'includes/header.php';
             </div>
         </div>
 
-        <!-- Edit Profile Form -->
         <div class="card">
-            <div class="card-header">
-                <h3>Edit Profile Information</h3>
-                <p>Update your personal information</p>
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3>Edit Profile Information</h3>
+                    <p>Update your personal information</p>
+                </div>
+                <button type="button" id="editProfileBtn" class="btn btn-primary">
+                    <i class="fa-solid fa-pen"></i> Edit Profile
+                </button>
             </div>
             <div class="card-body">
                 <form method="POST">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                         <div class="form-group">
                             <label>First Name</label>
-                            <input type="text" name="first_name" class="form-control" value="<?= htmlspecialchars($user['first_name']) ?>" required>
+                            <input type="text" name="first_name" id="firstNameInput" class="form-control" value="<?= htmlspecialchars($user['first_name']) ?>" required readonly>
                         </div>
-                        
+
                         <div class="form-group">
                             <label>Last Name</label>
-                            <input type="text" name="last_name" class="form-control" value="<?= htmlspecialchars($user['last_name']) ?>" required>
+                            <input type="text" name="last_name" id="lastNameInput" class="form-control" value="<?= htmlspecialchars($user['last_name']) ?>" required readonly>
                         </div>
-                        
+
                         <div class="form-group" style="grid-column: span 2;">
                             <label>Middle Name</label>
-                            <input type="text" name="middle_name" class="form-control" value="<?= htmlspecialchars($user['middle_name'] ?? '') ?>">
+                            <input type="text" name="middle_name" id="middleNameInput" class="form-control" value="<?= htmlspecialchars($user['middle_name'] ?? '') ?>" readonly>
                         </div>
-                        
+
                         <div class="form-group">
                             <label>Email Address</label>
-                            <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($user['email']) ?>" required>
+                            <input type="email" name="email" id="emailInput" class="form-control" value="<?= htmlspecialchars($user['email']) ?>" required readonly>
                         </div>
-                        
+
                         <div class="form-group">
                             <label>Phone Number</label>
-                            <input type="tel" name="phone" class="form-control" value="<?= htmlspecialchars($user['phone'] ?? '') ?>">
+                            <input type="tel" name="phone" id="phoneInput" class="form-control" value="<?= htmlspecialchars($user['phone'] ?? '') ?>" readonly>
                         </div>
                     </div>
 
@@ -148,13 +151,15 @@ include 'includes/header.php';
                         </p>
                     </div>
 
-                    <button type="submit" name="update_profile" class="btn btn-primary">Save Changes</button>
+                    <div id="editModeButtons" style="display: none; display: flex; gap: 12px;">
+                        <button type="submit" name="update_profile" id="saveChangesBtn" class="btn btn-primary">Save Changes</button>
+                        <button type="button" id="cancelEditBtn" class="btn btn-secondary">Cancel</button>
+                    </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Activity Log -->
     <div class="card">
         <div class="card-header">
             <h3>Recent Activity</h3>
@@ -167,7 +172,7 @@ include 'includes/header.php';
             $stmt->execute();
             $activities = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
             ?>
-            
+
             <?php if (empty($activities)): ?>
                 <p style="text-align: center; color: var(--gray-500);">No recent activities</p>
             <?php else: ?>
@@ -190,5 +195,4 @@ include 'includes/header.php';
     </div>
 </div>
 
-<script src="js/main.js"></script>
 <?php include 'includes/footer.php'; ?>

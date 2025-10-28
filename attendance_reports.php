@@ -50,7 +50,6 @@ include 'includes/header.php';
 ?>
 
 <div class="main-body">
-    <!-- Statistics -->
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-icon emerald">
@@ -105,7 +104,6 @@ include 'includes/header.php';
         </div>
     </div>
 
-    <!-- Filters -->
     <div class="card">
         <div class="card-header">
             <h3>Filter Attendance Records</h3>
@@ -117,38 +115,37 @@ include 'includes/header.php';
                     <label>Start Date</label>
                     <input type="date" name="start_date" class="form-control" value="<?= $startDate ?>">
                 </div>
-                
+
                 <div class="form-group" style="margin: 0;">
                     <label>End Date</label>
                     <input type="date" name="end_date" class="form-control" value="<?= $endDate ?>">
                 </div>
-                
+
                 <div class="form-group" style="margin: 0;">
                     <label>User (Optional)</label>
-                    <select name="user_id" class="form-control">
+                    <select name="user_id" id="userFilterDropdown" class="form-control">
                         <option value="">All Users</option>
                         <?php foreach ($users as $user): ?>
                             <option value="<?= $user['id'] ?>" <?= $userId == $user['id'] ? 'selected' : '' ?>>
-                                <?= $user['first_name'] . ' ' . $user['last_name'] ?> (<?= $user['faculty_id'] ?>)
+                                <?= htmlspecialchars($user['first_name'] . ' ' . $user['last_name']) ?> (<?= htmlspecialchars($user['faculty_id']) ?>)
                             </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
-                
+
                 <button type="submit" class="btn btn-primary">Filter</button>
-                <a href="export_attendance.php?start_date=<?= $startDate ?>&end_date=<?= $endDate ?>&user_id=<?= $userId ?>" class="btn btn-secondary">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="7 10 12 15 17 10"/>
-                        <line x1="12" y1="15" x2="12" y2="3"/>
-                    </svg>
-                    Export CSV
+
+                <a href="print_dtr.php?start_date=<?= $startDate ?>&user_id=<?= $userId ?>"
+                   class="btn btn-secondary"
+                   id="printDtrBtn"
+                   target="_blank">
+                    <i class="fa-solid fa-print" style="width: 16px; height: 16px;"></i>
+                    <span>Print DTR</span>
                 </a>
             </form>
         </div>
     </div>
 
-    <!-- Attendance Records -->
     <div class="card">
         <div class="card-header">
             <h3>Attendance Records</h3>
@@ -156,7 +153,7 @@ include 'includes/header.php';
         </div>
         <div class="card-body">
             <?php if (empty($records)): ?>
-                <p style="text-align: center; color: var(--gray-500); padding: 40px;">No records found</p>
+                <p style="text-align: center; color: var(--gray-500); padding: 40px;">No records found matching the selected filters.</p>
             <?php else: ?>
                 <table>
                     <thead>
@@ -175,12 +172,12 @@ include 'includes/header.php';
                         <?php foreach ($records as $record): ?>
                         <tr>
                             <td><?= date('m/d/Y', strtotime($record['date'])) ?></td>
-                            <td style="font-weight: 600;"><?= $record['faculty_id'] ?></td>
-                            <td><?= $record['first_name'] . ' ' . $record['last_name'] ?></td>
-                            <td><?= $record['role'] ?></td>
+                            <td style="font-weight: 600;"><?= htmlspecialchars($record['faculty_id']) ?></td>
+                            <td><?= htmlspecialchars($record['first_name'] . ' ' . $record['last_name']) ?></td>
+                            <td><?= htmlspecialchars($record['role']) ?></td>
                             <td><?= $record['time_in'] ? date('g:i A', strtotime($record['time_in'])) : '-' ?></td>
                             <td><?= $record['time_out'] ? date('g:i A', strtotime($record['time_out'])) : '-' ?></td>
-                            <td><?= $record['working_hours'] ?? '-' ?></td>
+                            <td><?= htmlspecialchars($record['working_hours'] ?? '-') ?></td>
                             <td>
                                 <?php if ($record['status'] === 'Present'): ?>
                                     <span style="background: var(--emerald-100); color: var(--emerald-700); padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">Present</span>
@@ -199,5 +196,55 @@ include 'includes/header.php';
     </div>
 </div>
 
-<script src="js/main.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const userDropdown = document.getElementById('userFilterDropdown');
+    const printBtn = document.getElementById('printDtrBtn');
+    const printBtnText = printBtn ? printBtn.querySelector('span') : null; // Check if printBtn exists
+    const startDateInput = document.querySelector('input[name="start_date"]');
+
+    function checkDtrButtonState() {
+        // Ensure all elements exist before proceeding
+        if (!userDropdown || !printBtn || !printBtnText || !startDateInput) return;
+
+        const selectedUserId = userDropdown.value;
+        const startDate = startDateInput.value;
+
+        if (selectedUserId) {
+            // User is selected
+            printBtn.classList.remove('btn-disabled'); // Re-enable style
+            printBtn.setAttribute('href', `print_dtr.php?start_date=${startDate}&user_id=${selectedUserId}`);
+            printBtnText.textContent = 'Print DTR';
+            printBtn.style.opacity = '1';
+            printBtn.style.pointerEvents = 'auto'; // Make clickable
+        } else {
+            // "All Users" is selected
+            printBtn.classList.add('btn-disabled'); // Disable style
+            printBtn.removeAttribute('href'); // Remove link to prevent click
+            printBtnText.textContent = 'Select a user to print';
+            printBtn.style.opacity = '0.6';
+            printBtn.style.pointerEvents = 'none'; // Make unclickable
+        }
+    }
+
+    // Add a simple disabled style only once
+    if (!document.getElementById('btn-disabled-style')) {
+        const style = document.createElement('style');
+        style.id = 'btn-disabled-style';
+        style.innerHTML = `.btn-disabled { background-color: var(--gray-200) !important; color: var(--gray-500) !important; cursor: not-allowed; border-color: var(--gray-300) !important; }`;
+        document.head.appendChild(style);
+    }
+
+    // Check state on page load
+    checkDtrButtonState();
+
+    // Add event listeners only if elements exist
+    if (userDropdown) {
+        userDropdown.addEventListener('change', checkDtrButtonState);
+    }
+    if (startDateInput) {
+        startDateInput.addEventListener('change', checkDtrButtonState);
+    }
+});
+</script>
 <?php include 'includes/footer.php'; ?>

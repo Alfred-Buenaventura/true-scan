@@ -27,6 +27,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csvFile'])) {
             $email = clean($data[6]);
             $phone = $data[7] ?? '';
 
+            // Skip if role is Admin
+            if (strtolower($role) === 'admin') {
+                $skipped++;
+                continue;
+            }
+
             $stmt = $db->prepare("SELECT id FROM users WHERE faculty_id = ?");
             $stmt->bind_param("s", $facultyId);
             $stmt->execute();
@@ -40,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csvFile'])) {
         }
         fclose($file);
         logActivity($_SESSION['user_id'], 'CSV Import', "Imported $imported users");
-        $success = "Successfully imported $imported user(s). Skipped $skipped duplicate(s).";
+        $success = "Successfully imported $imported user(s). Skipped $skipped duplicate(s)/admin(s).";
     }
 }
 
@@ -55,19 +61,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_user'])) {
     $phone = clean($_POST['phone']);
     $role = clean($_POST['role']);
 
-    $stmt = $db->prepare("SELECT id FROM users WHERE faculty_id = ?");
-    $stmt->bind_param("s", $facultyId);
-    $stmt->execute();
-    if ($stmt->get_result()->num_rows === 0) {
-        $username = strtolower($facultyId);
-        $password = hashPass('DefaultPass123!');
-        $stmt = $db->prepare("INSERT INTO users (faculty_id, username, password, first_name, last_name, middle_name, email, phone, role, force_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
-        $stmt->bind_param("sssssssss", $facultyId, $username, $password, $firstName, $lastName, $middleName, $email, $phone, $role);
-        $stmt->execute();
-        logActivity($_SESSION['user_id'], 'User Created', "Created user: $facultyId");
-        $success = "Account created successfully! User: $firstName $lastName";
+    // Ensure role is not Admin
+    if ($role === 'Admin') {
+        $error = 'Admin accounts must be created from the Admin Management page.';
     } else {
-        $error = 'Faculty ID already exists';
+        $stmt = $db->prepare("SELECT id FROM users WHERE faculty_id = ?");
+        $stmt->bind_param("s", $facultyId);
+        $stmt->execute();
+        if ($stmt->get_result()->num_rows === 0) {
+            $username = strtolower($facultyId);
+            $password = hashPass('DefaultPass123!');
+            $stmt = $db->prepare("INSERT INTO users (faculty_id, username, password, first_name, last_name, middle_name, email, phone, role, force_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
+            $stmt->bind_param("sssssssss", $facultyId, $username, $password, $firstName, $lastName, $middleName, $email, $phone, $role);
+            $stmt->execute();
+            logActivity($_SESSION['user_id'], 'User Created', "Created user: $facultyId");
+            $success = "Account created successfully! User: $firstName $lastName";
+        } else {
+            $error = 'Faculty ID already exists';
+        }
     }
 }
 
@@ -131,7 +142,6 @@ include 'includes/header.php';
 <main class="main-content" style="position: relative; z-index: 1; padding: 20px;">
 <div class="main-body">
 
-<!-- Toast Notifications -->
 <div id="toastContainer" class="toast-container"></div>
 
 <?php if ($error): ?>
@@ -154,14 +164,38 @@ include 'includes/header.php';
 </div>
 <?php endif; ?>
 
-<!-- Stats -->
-<div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 2rem;">
-    <div class="card"><div class="card-body"><h4>Total Accounts</h4><p><?= $totalUsers ?></p></div></div>
-    <div class="card"><div class="card-body"><h4>Non-Admin Users</h4><p><?= $nonAdminUsers ?></p></div></div>
-    <div class="card"><div class="card-body"><h4>Admin Users</h4><p><?= $adminUsers ?></p></div></div>
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon emerald">
+            <i class="fa-solid fa-users"></i>
+        </div>
+        <div class="stat-details">
+            <p>Total Accounts</p>
+            <div class="stat-value emerald"><?= $totalUsers ?></div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon emerald">
+            <i class="fa-solid fa-user-group"></i>
+        </div>
+        <div class="stat-details">
+            <p>Non-Admin Users</p>
+            <div class="stat-value emerald"><?= $nonAdminUsers ?></div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-icon emerald">
+            <i class="fa-solid fa-user-shield"></i>
+        </div>
+        <div class="stat-details">
+            <p>Admin Users</p>
+            <div class="stat-value emerald"><?= $adminUsers ?></div>
+        </div>
+    </div>
 </div>
 
-<!-- Tabs -->
 <div class="card">
     <div class="tabs">
         <button class="tab-btn <?= $activeTab === 'csv' ? 'active' : '' ?>" onclick="showTab(event, 'csv')"><i class="fa-solid fa-file-csv"></i> CSV Bulk Import</button>
@@ -169,7 +203,6 @@ include 'includes/header.php';
         <button class="tab-btn <?= $activeTab === 'view' ? 'active' : '' ?>" onclick="showTab(event, 'view')"><i class="fa-solid fa-list"></i> View All Accounts</button>
     </div>
 
-    <!-- CSV Tab -->
     <div id="csvTab" class="tab-content <?= $activeTab === 'csv' ? 'active' : '' ?>">
         <div class="card-body">
             <div class="csv-section-header">
@@ -177,8 +210,7 @@ include 'includes/header.php';
                 <h3>Bulk User Import (CSV)</h3>
             </div>
             <p class="csv-subtitle">Import multiple user accounts from a CSV file</p>
-            
-            <!-- Step 1: Download Template -->
+
             <div class="download-template-box">
                 <div class="download-template-inner">
                     <div class="step-badge">1</div>
@@ -192,7 +224,6 @@ include 'includes/header.php';
                 </div>
             </div>
 
-            <!-- Step 2: Upload CSV File -->
             <form method="POST" enctype="multipart/form-data" id="csvUploadForm">
                 <div style="margin-bottom: 1.5rem;">
                     <label class="csv-upload-label">Upload CSV File</label>
@@ -211,7 +242,6 @@ include 'includes/header.php';
                 </button>
             </form>
 
-            <!-- CSV Format Requirements -->
             <div class="csv-requirements">
                 <h4>CSV Format Requirements:</h4>
                 <ul>
@@ -219,12 +249,12 @@ include 'includes/header.php';
                     <li>All users will be created with default password: <strong>DefaultPass123!</strong></li>
                     <li>Users must change password on first login</li>
                     <li>Duplicate Faculty IDs will be skipped</li>
+                    <li>Rows with 'Admin' role will be skipped</li>
                 </ul>
             </div>
         </div>
     </div>
 
-    <!-- Create Tab -->
     <div id="createTab" class="tab-content <?= $activeTab === 'create' ? 'active' : '' ?>">
         <div class="card-body">
             <div class="user-creation-header">
@@ -232,7 +262,7 @@ include 'includes/header.php';
                 <h3>Create New User Account</h3>
             </div>
             <p class="user-creation-subtitle">Create a single user account with default password: <strong>DefaultPass123!</strong></p>
-            
+
             <form method="POST" style="margin-top: 1.5rem;">
                 <div class="user-creation-form-grid">
                     <div class="form-group">
@@ -266,12 +296,10 @@ include 'includes/header.php';
                             <option value="Full Time Teacher">Full Time Teacher</option>
                             <option value="Part Time Teacher">Part Time Teacher</option>
                             <option value="Registrar">Registrar</option>
-                            <option value="Admin">Admin</option>
-                        </select>
+                            </select>
                     </div>
                 </div>
 
-                <!-- Info Box -->
                 <div class="password-info-box">
                     <i class="fa-solid fa-circle-info"></i>
                     <div>
@@ -287,7 +315,6 @@ include 'includes/header.php';
         </div>
     </div>
 
-    <!-- View Tab -->
     <div id="viewTab" class="tab-content <?= $activeTab === 'view' ? 'active' : '' ?>">
         <div class="card-body">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
@@ -298,7 +325,6 @@ include 'includes/header.php';
                 </button>
             </div>
 
-            <!-- Active Users Table -->
             <table class="data-table">
                 <thead>
                     <tr>
@@ -340,7 +366,6 @@ include 'includes/header.php';
                 </tbody>
             </table>
 
-            <!-- Edit Form (Hidden by default, shown via JS) -->
             <div id="editForm" style="display: none; margin-top: 2rem; border-top: 2px solid var(--gray-200); padding-top: 2rem;">
                 <h4><i class="fa-solid fa-user-pen"></i> Edit User Information</h4>
                 <form method="POST" style="margin-top: 1rem;">
@@ -365,7 +390,6 @@ include 'includes/header.php';
         </div>
     </div>
 
-    <!-- Archived Accounts Modal -->
     <div id="archivedModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -419,7 +443,6 @@ include 'includes/header.php';
         </div>
     </div>
 
-    <!-- Custom Confirmation Modal -->
     <div id="confirmModal" class="modal">
         <div class="modal-content modal-small">
             <div class="modal-header">
@@ -439,7 +462,6 @@ include 'includes/header.php';
         </div>
     </div>
 
-    <!-- Double Confirmation Modal for Delete -->
     <div id="doubleConfirmModal" class="modal">
         <div class="modal-content modal-small">
             <div class="modal-header" style="background: var(--red-50);">
@@ -467,10 +489,8 @@ include 'includes/header.php';
         </div>
     </div>
 </div>
-</div>
 </main>
 
-<!-- SINGLE, CLEAN JS BLOCK -->
 <script>
 /* Single place for JS. All DOM bindings happen after DOMContentLoaded. */
 

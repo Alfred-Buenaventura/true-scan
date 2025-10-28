@@ -145,6 +145,4 @@ include 'includes/header.php';
         </div>
     </div>
 </div>
-
-<script src="js/main.js"></script>
 <?php include 'includes/footer.php'; ?>

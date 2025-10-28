@@ -9,14 +9,13 @@ $pendingCount = $db->query("SELECT COUNT(*) AS c FROM users WHERE status='active
 $pendingUsers = $db->query("SELECT * FROM users WHERE status='active' AND fingerprint_registered=0 ORDER BY created_at DESC")->fetch_all(MYSQLI_ASSOC);
 
 $pageTitle = "Complete Registration";
+// UPDATED Subtitle
+$pageSubtitle = "Manage and Complete User Fingerprint Registration.";
 include 'includes/header.php';
 ?>
 <div class="main-body">
     <div class="container mx-auto p-6">
-        <h2 class="text-2xl font-bold mb-2">Complete Registration</h2>
-        <p class="text-gray-600 mb-6">Register fingerprints for users with pending accounts</p>
 
-        <!-- Pending Count Banner -->
         <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="bg-amber-100 text-amber-600 p-2 rounded-full">
@@ -24,12 +23,11 @@ include 'includes/header.php';
                 </div>
                 <div>
                     <p class="text-sm text-amber-800 font-semibold">Pending Fingerprint Registrations</p>
-                    <h3 class="text-2xl font-bold text-amber-700"><?= $pendingCount ?></h3>
+                    <h3 class="text-3xl font-bold text-amber-700"><?= $pendingCount ?></h3>
                 </div>
             </div>
         </div>
 
-        <!-- Users Awaiting Fingerprint Registration -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200">
             <div class="border-b border-gray-200 px-6 py-3 flex items-center justify-between">
                 <h3 class="font-semibold text-gray-800 flex items-center gap-2">
@@ -51,7 +49,7 @@ include 'includes/header.php';
                         </a>
                     </div>
                 <?php else: ?>
-                    <table class="w-full border-collapse">
+                    <table class="w-full border-collapse larger-text-table">
                         <thead class="bg-gray-50 border-b border-gray-200">
                             <tr>
                                 <th class="text-left px-4 py-2 text-sm text-gray-600 font-semibold">Faculty ID</th>
@@ -74,8 +72,9 @@ include 'includes/header.php';
                                     <td class="px-4 py-3 text-gray-500 text-sm"><?= date('m/d/Y', strtotime($u['created_at'])) ?></td>
                                     <td class="px-4 py-3 text-center">
                                         <a href="fingerprint_registration.php?user_id=<?= $u['id'] ?>"
-                                           class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center gap-2">
-                                            <i class="fa fa-fingerprint"></i> Register
+                                           class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center register-btn-special">
+                                            <i class="fa fa-fingerprint"></i>
+                                            <span>Register</span>
                                         </a>
                                     </td>
                                 </tr>
