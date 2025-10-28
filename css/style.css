@@ -75,8 +75,11 @@
     --blue-600: #3b82f6;
     --blue-700: #1e40af;
     --transition-fast: all 0.2s ease-in-out;
+    --transition-medium: all 0.3s ease-in-out; /* Added for sidebar */
     --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.08);
     --shadow-strong: 0 8px 24px rgba(0, 0, 0, 0.1);
+    --sidebar-width: 320px; /* NEW: Even Wider sidebar */
+    --sidebar-collapsed-width: 80px; /* Keep collapsed width */
 }
 
 * {
@@ -90,6 +93,7 @@ body {
     background: var(--gray-50);
     color: var(--gray-900);
     line-height: 1.5;
+    overflow-x: hidden; /* Prevent horizontal scroll during transition */
 }
 
 /* === Login Page === */
@@ -146,77 +150,122 @@ body {
 .dashboard-container {
     display: flex;
     min-height: 100vh;
-    background: var(--emerald-50);
+    background: var(--gray-50);
+    position: relative;
+    transition: padding-left var(--transition-medium);
+    padding-left: var(--sidebar-width); /* Initial padding for expanded sidebar */
 }
 
 /* === Sidebar === */
 .sidebar {
-    width: 260px;
+    width: var(--sidebar-width); /* Use variable */
+    height: 100vh; /* Full height */
+    position: fixed; /* Fixed position */
+    left: 0;
+    top: 0;
     background: linear-gradient(180deg, var(--emerald-700), var(--emerald-800));
     color: white;
     display: flex;
     flex-direction: column;
-    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.08);
+    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.1); /* Adjusted shadow */
+    transition: width var(--transition-medium); /* Smooth width transition */
+    z-index: 20; /* Ensure sidebar is above content */
+    overflow-x: hidden; /* Hide horizontal overflow during transition */
 }
 
 .sidebar-header {
-    padding: 24px;
+    padding: 20px 24px; /* Slightly adjusted padding */
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+    transition: padding var(--transition-medium);
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Space out logo and toggle button */
 }
 
 .sidebar-logo {
     display: flex;
     align-items: center;
     gap: 12px;
+    transition: opacity var(--transition-medium);
+    min-width: 0; /* Allow logo area to shrink */
+    flex-grow: 1; /* Allow logo area to take available space */
 }
 
 .sidebar-logo-circle {
-    width: 48px;
-    height: 48px;
+    width: 44px; /* Slightly smaller */
+    height: 44px;
     background: white;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .sidebar-logo-circle svg {
-    width: 28px;
-    height: 28px;
+    width: 24px; /* Slightly smaller */
+    height: 24px;
     color: var(--emerald-600);
 }
 
+.sidebar-title {
+    overflow: hidden; /* Hide title when collapsing */
+}
+
 .sidebar-title h1 {
-    font-size: 18px;
+    font-size: 17px; /* Slightly smaller */
     font-weight: 700;
+    white-space: nowrap;
 }
 
 .sidebar-title p {
-    font-size: 12px;
+    font-size: 11px; /* Slightly smaller */
     color: var(--emerald-200);
+    white-space: nowrap;
 }
 
 /* Nav */
 .sidebar-nav {
     flex: 1;
     padding: 16px;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .nav-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    border-radius: 12px;
+    display: flex; /* Use flexbox for icon and text */
+    align-items: center; /* Vertically align icon and text */
+    gap: 16px; /* Increased Space between icon and text */
+    padding: 14px 20px; /* Adjusted padding */
+    border-radius: 10px;
     color: white;
     text-decoration: none;
     margin-bottom: 8px;
-    transition: var(--transition-fast);
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.nav-icon {
+    width: 20px; /* Icon size */
+    height: 20px;
+    flex-shrink: 0; /* Prevent icon shrinking */
+    transition: margin var(--transition-medium); /* Smooth margin transition */
+    fill: currentColor; /* Use current text color for fill */
+    /* Remove stroke if using filled icons */
+}
+
+.nav-text {
+    font-size: 1rem; /* Back to original size */
+    transition: opacity 0.2s ease-in-out; /* Faster fade for text */
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .nav-item:hover {
     background: rgba(255, 255, 255, 0.15);
-    transform: translateX(3px);
+    transform: none;
 }
 
 .nav-item.active {
@@ -224,16 +273,18 @@ body {
     color: var(--emerald-700);
     font-weight: 600;
 }
-
-.nav-item svg {
-    width: 20px;
-    height: 20px;
+/* Active state icon color */
+.nav-item.active .nav-icon {
+    fill: var(--emerald-700); /* Change icon fill color when active */
 }
+
 
 /* Footer */
 .sidebar-footer {
     padding: 16px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+    transition: padding var(--transition-medium);
 }
 
 .user-info {
@@ -242,6 +293,7 @@ body {
     padding: 16px;
     margin-bottom: 12px;
     box-shadow: var(--shadow-soft);
+    transition: opacity var(--transition-medium), padding var(--transition-medium), margin var(--transition-medium);
 }
 
 .user-info-inner {
@@ -260,6 +312,14 @@ body {
     justify-content: center;
     font-weight: 700;
     font-size: 14px;
+    flex-shrink: 0;
+    transition: margin var(--transition-medium);
+}
+
+.user-details {
+     overflow: hidden;
+     white-space: nowrap;
+     transition: opacity 0.2s ease-in-out;
 }
 
 .user-details p {
@@ -270,6 +330,15 @@ body {
 .user-name {
     font-size: 13px;
     font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-id {
+    font-size: 11px;
+    color: var(--emerald-200);
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .logout-btn {
@@ -281,7 +350,25 @@ body {
     border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
-    transition: var(--transition-fast);
+    transition: all var(--transition-fast); /* Include width/padding in transition */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    overflow: hidden;
+}
+
+.logout-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    fill: currentColor;
+    transition: margin var(--transition-medium);
+}
+
+.logout-text {
+    transition: opacity 0.2s ease-in-out;
+    white-space: nowrap;
 }
 
 .logout-btn:hover {
@@ -289,13 +376,125 @@ body {
     color: var(--emerald-700);
 }
 
+/* Sidebar Toggle Button (in header) */
+.sidebar-toggle-btn {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: none;
+    padding: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-left: 12px; /* Add some space between logo and button */
+}
+
+.sidebar-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.sidebar-toggle-btn svg {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    fill: currentColor; /* For solid icons */
+}
+
+/* === Collapsed Sidebar State === */
+.dashboard-container.sidebar-collapsed {
+    padding-left: var(--sidebar-collapsed-width);
+}
+
+.dashboard-container.sidebar-collapsed .sidebar {
+    width: var(--sidebar-collapsed-width);
+}
+
+.dashboard-container.sidebar-collapsed .sidebar-header {
+    padding: 20px 16px; /* Adjust padding for collapsed */
+    justify-content: center; /* Center the toggle button */
+}
+
+/* Hide logo smoothly when collapsed */
+.dashboard-container.sidebar-collapsed .sidebar-logo {
+    opacity: 0;
+    width: 0;
+    pointer-events: none;
+    position: absolute;
+}
+
+.dashboard-container.sidebar-collapsed .sidebar-toggle-btn {
+    margin-left: 0; /* No margin needed when logo is hidden */
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Adjust nav items for icon-only display */
+.dashboard-container.sidebar-collapsed .nav-item {
+    justify-content: center; /* Center the icon horizontally */
+    padding: 14px 0; /* Vertical padding, no horizontal */
+    gap: 0; /* No gap needed */
+}
+
+.dashboard-container.sidebar-collapsed .nav-icon {
+    margin: 0; /* Center icon */
+}
+
+.dashboard-container.sidebar-collapsed .nav-text {
+    opacity: 0;
+    width: 0;
+    position: absolute;
+    pointer-events: none;
+}
+
+
+.dashboard-container.sidebar-collapsed .sidebar-footer {
+     padding: 16px 12px;
+}
+
+/* Hide user info card when collapsed */
+.dashboard-container.sidebar-collapsed .user-info {
+    opacity: 0;
+    height: 0;
+    padding: 0;
+    margin: 0;
+    border: none;
+    pointer-events: none;
+}
+
+/* Adjust logout button for icon-only */
+.dashboard-container.sidebar-collapsed .logout-btn {
+    width: 44px; /* Make square-ish */
+    height: 44px;
+    padding: 0;
+    margin: 0 auto;
+    gap: 0; /* No gap */
+}
+
+.dashboard-container.sidebar-collapsed .logout-text {
+    opacity: 0;
+    width: 0;
+    position: absolute;
+    pointer-events: none;
+}
+
+.dashboard-container.sidebar-collapsed .logout-icon {
+    margin: 0; /* Ensure icon is centered */
+}
+
+
 /* === Main Content === */
 .main-content {
     flex: 1;
     display: flex;
     flex-direction: column;
-    background: var(--gray-50);
+    width: 100%;
+    transition: width var(--transition-medium);
 }
+
 
 .main-header {
     background: white;
@@ -353,6 +552,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .stat-icon.emerald {
@@ -428,6 +628,7 @@ thead {
 th, td {
     padding: 14px 16px;
     text-align: left;
+    vertical-align: middle;
 }
 
 tbody tr {
@@ -481,7 +682,10 @@ tbody tr:hover {
     padding: 2rem;
     color: #1f2937;
     font-family: 'Inter', sans-serif;
+    flex-grow: 1;
+    overflow-y: auto;
 }
+
 
 .page-header h1 {
     font-size: 1.75rem;
@@ -1027,9 +1231,19 @@ tbody tr:hover {
 
 /* Responsive */
 @media (max-width: 768px) {
-    .sidebar {
-        display: none;
+    /* Hide sidebar completely on smaller screens */
+    .dashboard-container {
+        padding-left: 0;
     }
+    .sidebar {
+        transform: translateX(-100%);
+        width: var(--sidebar-width);
+        transition: transform var(--transition-medium);
+    }
+     .dashboard-container.sidebar-mobile-open .sidebar {
+        transform: translateX(0);
+    }
+
 
     .main-header {
         flex-direction: column;
@@ -1045,39 +1259,60 @@ tbody tr:hover {
     .user-creation-form-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .tabs {
         flex-direction: column;
         padding: 0;
     }
-    
+
     .tab-btn {
         border-radius: 0;
         border-bottom: 1px solid var(--gray-200);
     }
-    
+
     .download-template-inner {
         flex-direction: column;
     }
-    
+
     .csv-dropzone {
         padding: 2rem 1rem;
     }
-    
+
     .modal-content {
         width: 95%;
         max-height: 90vh;
         margin: 1rem;
     }
-    
+
     .modal-body {
         padding: 1rem;
     }
-    
+
     .modal-header,
     .modal-footer {
         padding: 1rem;
     }
+
+    /* Responsive login page */
+    .login-card-modern {
+        max-width: 90%;
+        margin: 0;
+    }
+
+    .login-header-modern {
+        padding: 2rem 1.5rem;
+    }
+
+    .login-body-modern {
+        padding: 1.5rem;
+    }
+
+    /* Show sidebar toggle on mobile to open/close */
+    .sidebar-toggle-btn {
+        display: flex; /* Show the button */
+    }
+     /* You might need a separate button in the header for mobile toggle */
+
 }
 
 /* ===== ENHANCED TAB + VIEW ACCOUNTS STYLING ===== */
@@ -1165,7 +1400,6 @@ tbody tr:hover {
     border-radius: 8px;
 }
 
-/* Slightly bigger close and restore buttons */
 #archivedModal .btn.restore {
     background: var(--emerald-600);
     color: white;
@@ -1383,3 +1617,209 @@ tbody tr:hover {
     100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 
+
+/* ====== MODERN LOGIN PAGE STYLING (WIDER) ====== */
+.login-card-modern {
+    max-width: 800px;
+    width: 100%;
+    box-shadow: var(--shadow-strong);
+    margin: 0;
+    border-radius: 16px;
+}
+
+.login-header-modern {
+    text-align: center;
+    padding: 3rem;
+}
+
+.login-header-modern .logo-circle {
+    background: white;
+    border: 4px solid var(--emerald-600);
+    margin: 0 auto 1.5rem auto;
+    width: 90px;
+    height: 90px;
+}
+
+.login-header-modern .fingerprint-icon {
+    color: var(--emerald-600);
+    width: 48px;
+    height: 48px;
+}
+
+.login-header-modern h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--emerald-800);
+    margin: 0 0 0.5rem 0;
+}
+
+.login-header-modern p {
+    color: var(--gray-600);
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.login-body-modern {
+    padding: 3rem;
+}
+
+.login-body-modern h2 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.login-body-modern .subtitle {
+    color: var(--gray-600);
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+}
+
+.login-body-modern .alert {
+    margin-bottom: 1.5rem;
+}
+
+.login-body-modern .form-group {
+    margin-bottom: 1.25rem;
+}
+
+.login-body-modern .form-group label {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.login-body-modern .form-control {
+    padding: 0.85rem 1rem;
+    font-size: 1rem;
+}
+
+.login-body-modern .password-input {
+    position: relative;
+    display: flex;
+}
+
+.login-body-modern .password-input .form-control {
+    padding-right: 3.5rem;
+}
+
+.login-body-modern .password-input .toggle-password {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 3.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--gray-400);
+    font-size: 1.1rem;
+}
+
+.login-body-modern .form-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    font-size: 0.95rem;
+}
+
+.login-body-modern .checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--gray-700);
+    cursor: pointer;
+}
+
+.login-body-modern .checkbox input {
+    height: 1.1rem;
+    width: 1.1rem;
+}
+
+.login-body-modern .forgot-link {
+    color: var(--emerald-600);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.login-footer-modern {
+    text-align: center;
+    margin-top: 2.5rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--gray-200);
+}
+
+.login-footer-modern p {
+    color: var(--gray-500);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+#forgotModal .modal-body .form-group {
+    margin-bottom: 1.25rem;
+}
+
+#forgotModal .modal-body p {
+    color: var(--gray-600);
+    margin-bottom: 1.25rem;
+    font-size: 0.95rem;
+}
+
+#forgotModal .modal-content.modal-small {
+    max-width: 550px;
+}
+
+/* ====== SCHEDULE MANAGEMENT STAT CARDS (SMALLER) ====== */
+.schedule-stats-grid {
+    margin-bottom: 1.5rem;
+    margin-top: 0;
+}
+
+.stat-card-small {
+    padding: 1.25rem;
+}
+
+.stat-card-small .stat-icon {
+    width: 44px;
+    height: 44px;
+}
+
+.stat-card-small .stat-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.stat-card-small .stat-details p {
+    font-size: 12px;
+    margin-bottom: 0;
+}
+
+.stat-card-small .stat-details .stat-value {
+    font-size: 24px;
+    line-height: 1.2;
+}
+
+/* Special rules for the 'Name' card */
+.stat-card-small .stat-details .stat-value-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--emerald-700);
+    line-height: 1.3;
+}
+
+.stat-card-small .stat-details .stat-value-subtext {
+    font-size: 12px;
+    color: var(--gray-600);
+}
+
+/* ====== Toast Notifications Container ====== */
+#toastContainer {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-end;
+}
