@@ -1,17 +1,17 @@
 <?php
-// Simplified config.php
+// Start or resume a session
 session_start();
 
-// Database settings
+// Database connection constants
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_NAME', 'bpc_attendance');
 
-// Timezone
+// Set the default timezone for date/time functions
 date_default_timezone_set('Asia/Manila');
 
-// Database connection
+// Function to get the database connection (uses a static variable to prevent multiple connections)
 function db() {
     static $conn = null;
     if ($conn === null) {
@@ -23,22 +23,22 @@ function db() {
     return $conn;
 }
 
-// Clean input
+// Function to clean user input to prevent XSS attacks
 function clean($data) {
     return htmlspecialchars(trim($data));
 }
 
-// Check if logged in
+// Function to check if a user is currently logged in
 function isLoggedIn() {
     return isset($_SESSION['user_id']);
 }
 
-// Check if admin
+// Function to check if the logged-in user is an Admin
 function isAdmin() {
     return isset($_SESSION['role']) && $_SESSION['role'] === 'Admin';
 }
 
-// Require login
+// Function to require a user to be logged in to access a page
 function requireLogin() {
     if (!isLoggedIn()) {
         header('Location: login.php');
@@ -46,25 +46,25 @@ function requireLogin() {
     }
 }
 
-// Require admin
+// Function to require a user to be an Admin to access a page
 function requireAdmin() {
-    requireLogin();
+    requireLogin(); // First, ensure they are logged in
     if (!isAdmin()) {
-        die('Access denied');
+        die('Access denied'); // Stop the script if they are not an admin
     }
 }
 
-// Hash password
+// Function to hash a password using the default, secure PHP method
 function hashPass($password) {
     return password_hash($password, PASSWORD_DEFAULT);
 }
 
-// Verify password
+// Function to verify a submitted password against a saved hash
 function verifyPass($password, $hash) {
     return password_verify($password, $hash);
 }
 
-// Log activity
+// Function to log an activity to the `activity_logs` table
 function logActivity($userId, $action, $details = '') {
     $db = db();
     $ip = $_SERVER['REMOTE_ADDR'];
@@ -73,7 +73,7 @@ function logActivity($userId, $action, $details = '') {
     $stmt->execute();
 }
 
-// Get user by ID
+// Function to get a single user's details by their ID
 function getUser($userId) {
     $db = db();
     $stmt = $db->prepare("SELECT * FROM users WHERE id = ? AND status = 'active'");
@@ -82,14 +82,14 @@ function getUser($userId) {
     return $stmt->get_result()->fetch_assoc();
 }
 
-// Send email (simple version)
+// Function to send an email (placeholder for a real email service)
 function sendEmail($to, $subject, $message) {
     $headers = "From: noreply@bpc.edu.ph\r\n";
     $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
     return mail($to, $subject, $message, $headers);
 }
 
-// JSON response
+// Function to return a standardized JSON response for API calls
 function jsonResponse($success, $message, $data = null) {
     header('Content-Type: application/json');
     $response = ['success' => $success, 'message' => $message];

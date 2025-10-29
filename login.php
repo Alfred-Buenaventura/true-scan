@@ -1,41 +1,39 @@
 <?php
-// Always start the session at the beginning of the script.
+// Include the main configuration file which has helper functions and database connection
 require_once 'config.php';
 
-// If the user is already logged in, redirect them to the dashboard.
+// Check if the user is already logged in (using a function from config.php)
 if (isLoggedIn()) {
+    // If yes, redirect them to the main dashboard (index.php)
     header('Location: index.php');
-    exit;
+    exit; // Stop the script from running further
 }
 
-// Initialize variables to hold messages for the user.
+// Initialize variables to store error or success messages to show the user
 $error = '';
 $success = '';
-$showOtpForm = false; // This will control which part of the modal is shown.
 
-// =================================================================
-// HANDLE POST REQUESTS (Login, Forgot Password, Reset Password)
-// =================================================================
+// This variable controls whether to show the "Enter OTP" part of the "Forgot Password" modal
+$showOtpForm = false; 
 
-// Check if the form was submitted.
+// Check if the page was loaded via a POST request (meaning a form was submitted)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // --- Handle User Login ---
     if (isset($_POST['login'])) {
-        $username = clean($_POST['username']);
+        $username = clean($_POST['username']); 
         $password = $_POST['password'];
 
         if (!empty($username) && !empty($password)) {
-            $db = db();
-            // Prepare a query to find the user by username or faculty_id.
+            $db = db(); 
             $stmt = $db->prepare("SELECT * FROM users WHERE (username = ? OR faculty_id = ?) AND status = 'active'");
             $stmt->bind_param("ss", $username, $username);
             $stmt->execute();
             $user = $stmt->get_result()->fetch_assoc();
 
-            // Verify user exists and the password is correct.
             if ($user && verifyPass($password, $user['password'])) {
-                // Set session variables to log the user in.
+                
+                // Create the user's session
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['faculty_id'] = $user['faculty_id'];
                 $_SESSION['username'] = $user['username'];
@@ -46,13 +44,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 logActivity($user['id'], 'Login', 'User logged in successfully.');
 
-                // Redirect user based on whether they need to change their password.
+                // Redirect based on password change requirement
                 if ($user['force_password_change']) {
                     header('Location: change_password.php?first_login=1');
                 } else {
                     header('Location: index.php');
                 }
-                exit;
+                exit; 
             } else {
                 $error = 'Invalid username or password. Please try again.';
             }
@@ -61,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // --- Handle Forgot Password: Send OTP ---
+    // --- Handle Forgot Password (Step 1: Send OTP) ---
     if (isset($_POST['send_otp'])) {
         $email = clean($_POST['email']);
 
@@ -73,17 +71,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = $stmt->get_result()->fetch_assoc();
 
             if ($user) {
-                // Generate a 6-character OTP and store it in the session.
                 $otp = strtoupper(substr(md5(time()), 0, 6));
+                
                 $_SESSION['reset_otp'] = $otp;
                 $_SESSION['reset_user_id'] = $user['id'];
-                $_SESSION['reset_time'] = time(); // OTP valid for 1 hour.
+                $_SESSION['reset_time'] = time(); // Used to check if the OTP has expired
 
-                // In a real application, you would send an email here.
                 // sendEmail($email, 'Password Reset OTP', "Your password reset OTP is: $otp.");
 
-                $success = "An OTP has been sent to your email: $otp"; // Display OTP for simplicity
-                $showOtpForm = true; // Tell the modal to show the OTP step.
+                $success = "An OTP has been sent to your email: $otp"; 
+                $showOtpForm = true; // Tell the page to show the OTP entry form
             } else {
                 $error = 'No account found with that email address.';
                 $showOtpForm = false;
@@ -91,28 +88,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // --- Handle Password Reset with OTP ---
+    // --- Handle Password Reset (Step 2: Verify OTP) ---
     if (isset($_POST['reset_password'])) {
         $otp = strtoupper(clean($_POST['otp']));
         $newPass = $_POST['new_password'];
         $confirmPass = $_POST['confirm_password'];
-        $showOtpForm = true; // Keep the OTP form visible.
+        $showOtpForm = true; 
 
-        // Check if OTP is valid and not expired.
         if (isset($_SESSION['reset_otp']) && $otp === $_SESSION['reset_otp']) {
-            if ((time() - $_SESSION['reset_time']) < 3600) { // 3600 seconds = 1 hour
+            if ((time() - $_SESSION['reset_time']) < 3600) { // 1 hour validity
                 if ($newPass === $confirmPass) {
                     if (strlen($newPass) >= 8) {
                         $db = db();
-                        $hashedPass = hashPass($newPass);
+                        $hashedPass = hashPass($newPass); 
                         $stmt = $db->prepare("UPDATE users SET password = ? WHERE id = ?");
                         $stmt->bind_param("si", $hashedPass, $_SESSION['reset_user_id']);
                         $stmt->execute();
 
-                        // Clear session variables after successful reset.
                         unset($_SESSION['reset_otp'], $_SESSION['reset_user_id'], $_SESSION['reset_time']);
                         $success = 'Password has been reset successfully. You can now login.';
-                        $showOtpForm = false; // Hide modal form.
+                        $showOtpForm = false; 
                     } else {
                         $error = 'Password must be at least 8 characters long.';
                     }
@@ -135,38 +130,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - BPC Attendance</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css?v=1.1">
-</head>
+    <link rel="stylesheet" href="css/style.css?v=1.2"> </head>
 <body class="login-page">
     
-    <div class="card login-card-modern">
+    <div class="card login-card-new">
         
-        <div class="card-header login-header-modern">
-            <div class="logo-circle">
-                <svg class="fingerprint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M12 11v.01M12 14v.01M12 17v.01M15 8.5c0-1.933-1.567-3.5-3.5-3.5S8 6.567 8 8.5V12c0 1.933 1.567 3.5 3.5 3.5S15 13.933 15 12V8.5z"/>
-                </svg>
+        <div class="login-new-header">
+            <div class="login-logo-container">
+                <i class="fa-solid fa-fingerprint"></i>
             </div>
-            <h1>BPC Attendance</h1>
-            <p>Staff Attendance Monitoring System</p>
+            <h2 class="login-title">BPC Attendance System</h2>
+            <p class="login-subtitle">Fingerprint-based Attendance & Gate Entry Monitoring</p>
         </div>
 
-        <div class="card-body login-body-modern">
-            <h2>Welcome Back</h2>
-            <p class="subtitle">Please login to your account</p>
-
+        <div class="login-new-body">
+            
             <?php if ($error): ?>
-                <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
+                <div class="alert alert-error" style="margin-bottom: 1.5rem;"><?= htmlspecialchars($error) ?></div>
             <?php endif; ?>
-
             <?php if ($success): ?>
-                <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
+                <div class="alert alert-success" style="margin-bottom: 1.5rem;"><?= htmlspecialchars($success) ?></div>
             <?php endif; ?>
 
             <form method="POST">
                 <div class="form-group">
-                    <label>Username or Faculty ID</label>
-                    <input type="text" name="username" class="form-control" placeholder="Enter your username" required>
+                    <label>Username</label> <input type="text" name="username" class="form-control" placeholder="Enter your username" required>
                 </div>
 
                 <div class="form-group">
@@ -179,28 +167,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
 
-                <div class="form-options">
+                <div class="form-options-new">
                     <label class="checkbox">
                         <input type="checkbox" name="remember">
                         <span>Remember me</span>
                     </label>
-                    <a href="#" onclick="showForgotModal()" class="forgot-link">Forgot Password?</a>
                 </div>
 
-                <button type="submit" name="login" class="btn btn-primary btn-full-width">Login</button>
+                <button type="submit" name="login" class="btn btn-primary btn-full-width">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Sign In</span> </button>
             </form>
 
-            <div class="login-footer-modern">
-                <p>Bulacan Polytechnic College<br>© 2025</p>
-            </div>
+            <a href="#" onclick="showForgotModal()" class="login-new-forgot-link">Forgot your password?</a>
         </div>
     </div>
-
+    
     <div id="forgotModal" class="modal">
         <div class="modal-content modal-small">
             <form method="POST">
                 <div class="modal-header">
-                    <h3>Reset Password</h3>
+                    <h3><i class="fa-solid fa-key"></i> Reset Password</h3>
                     <button type="button" class="modal-close" onclick="closeForgotModal()">
                         <i class="fa-solid fa-times"></i>
                     </button>
