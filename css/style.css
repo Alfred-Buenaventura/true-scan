@@ -3118,3 +3118,344 @@ form input[type="date"].form-control {
 
 
 /* Attendance Reports Page Specific Styles end. */
+
+/* --- NEW: Filter Styles for Attendance Reports --- */
+.filter-controls-new {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.filter-inputs {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr; /* 3 columns: Search (1fr), Date (2fr), Dept (1fr) */
+    gap: 1.5rem;
+    align-items: end;
+}
+
+.filter-actions-new {
+    display: flex;
+    justify-content: flex-end; /* Aligns buttons to the right */
+    gap: 0.75rem;
+    flex-wrap: wrap; /* Allows buttons to wrap on small screens */
+}
+
+/* Responsive adjustments for filters */
+@media (max-width: 1024px) {
+    .filter-inputs {
+        grid-template-columns: 1fr 1fr; /* Stack to 2 columns */
+    }
+}
+
+@media (max-width: 768px) {
+    .filter-inputs {
+        grid-template-columns: 1fr; /* Stack to 1 column */
+    }
+    .filter-actions-new {
+        justify-content: flex-start; /* Align buttons left on mobile */
+    }
+}
+
+/* --- NEW: print_dtr.php STYLES --- */
+body.dtr-body {
+    background: var(--gray-100);
+    font-family: Arial, sans-serif;
+    color: #000;
+}
+
+.dtr-container {
+    width: 8.5in;
+    min-height: 11in;
+    margin: 2rem auto;
+    background: #fff;
+    padding: 0.75in;
+    border: 1px solid #ccc;
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    flex-direction: column;
+}
+
+.dtr-header {
+    text-align: center;
+    font-family: 'Times New Roman', Times, serif;
+}
+.dtr-header h3 {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin: 0;
+    text-align: left;
+}
+.dtr-header h2 {
+    font-weight: bold;
+    font-size: 1.3rem;
+    margin: 0.5rem 0;
+}
+
+.info-table {
+    width: 100%;
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+    border-collapse: collapse;
+}
+.info-table td {
+    padding: 4px 0;
+}
+.info-table .label {
+    white-space: nowrap;
+    padding-right: 10px;
+}
+.info-table .value {
+    border-bottom: 1px solid #000;
+    width: 100%;
+}
+
+.attendance-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+    border: 2px solid #000;
+    text-align: center;
+}
+.attendance-table th,
+.attendance-table td {
+    border: 1px solid #000;
+    padding: 5px;
+    height: 25px; /* Fixed height for rows */
+}
+.attendance-table th {
+    font-weight: bold;
+    font-size: 0.8rem;
+}
+.attendance-table .day-col {
+    width: 8%;
+}
+.attendance-table .col-small {
+    width: 10%;
+}
+.attendance-table .col-large {
+    width: 13%;
+}
+.attendance-table .total-row td {
+    font-weight: bold;
+    text-align: right;
+    padding-right: 1rem;
+}
+.attendance-table .total-row td:first-child {
+    text-align: center;
+}
+.attendance-table .time-val {
+    font-size: 0.85rem;
+}
+
+.dtr-footer-content {
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    flex-grow: 1; /* Pushes signature to bottom */
+}
+
+.signature-block {
+    margin-top: 3rem;
+    text-align: center;
+}
+.signature-line {
+    border-bottom: 1px solid #000;
+    width: 300px;
+    margin: 0 auto;
+    padding-top: 2rem;
+}
+.signature-label {
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+.print-controls {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: var(--shadow-strong);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.print-controls .btn {
+    display: flex;
+    gap: 0.5rem;
+    text-decoration: none;
+    margin: 0;
+}
+
+/* Print-specific styles */
+@media print {
+    body.dtr-body {
+        background: #fff;
+        margin: 0;
+    }
+    .print-controls, .back-link {
+        display: none !important;
+    }
+    .dtr-container {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+        border: none;
+        box-shadow: none;
+        padding: 0;
+    }
+    .attendance-table {
+        font-size: 0.8rem; /* Shrink table slightly to fit */
+    }
+    .attendance-table th,
+    .attendance-table td {
+        padding: 4px;
+        height: 23px;
+    }
+    .attendance-table .time-val {
+        font-size: 0.8rem;
+    }
+}
+
+/* --- NEW: User Dashboard Styles --- */
+.user-dashboard-body {
+    padding: 1.5rem 2rem;
+}
+
+.ud-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.ud-card {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-soft);
+    overflow: hidden;
+}
+
+.ud-card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--emerald-800);
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--gray-200);
+    background: var(--emerald-50);
+}
+
+.ud-card-content {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.ud-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.95rem;
+}
+
+.ud-card-label {
+    color: var(--gray-600);
+    font-weight: 500;
+}
+
+.ud-card-value {
+    color: var(--gray-800);
+    font-weight: 600;
+    font-family: monospace;
+    font-size: 1rem;
+}
+
+.ud-badge {
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    text-transform: capitalize;
+}
+
+.ud-badge.completed {
+    background-color: var(--emerald-100);
+    color: var(--emerald-700);
+}
+
+.ud-badge.pending {
+    background-color: var(--yellow-100);
+    color: var(--yellow-700);
+}
+
+.ud-badge.not-present {
+    background-color: var(--gray-100);
+    color: var(--gray-600);
+}
+
+/* Activity Card */
+.ud-activity-card .ud-card-content {
+    padding: 0; /* Remove padding for list */
+}
+
+.ud-activity-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.ud-activity-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--gray-100);
+    gap: 1rem;
+}
+
+.ud-activity-item:last-child {
+    border-bottom: none;
+}
+
+.ud-activity-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.ud-activity-action {
+    font-weight: 600;
+    color: var(--gray-800);
+    font-size: 0.95rem;
+}
+
+.ud-activity-description {
+    font-size: 0.85rem;
+    color: var(--gray-600);
+}
+
+.ud-activity-time {
+    font-size: 0.85rem;
+    color: var(--gray-500);
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.ud-activity-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+    color: var(--gray-500);
+}
+
+.ud-activity-empty i {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: var(--gray-400);
+}
