@@ -179,10 +179,14 @@ if ($stmt) {
     $stmt->execute();
     $schedules = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 } else {
+    // This is where the first part of your error is coming from
     $error = "Database query error: " . $db->error;
 }
     
 // --- Get Stats ---
+// =================================================================
+// === START: REVISED STATS BLOCK (More detailed errors) ========
+// =================================================================
 $weeklyHours = 0;
 $totalSchedules = 0;
 $totalUsersWithSchedules = 0;
@@ -190,93 +194,75 @@ $totalUsersWithSchedules = 0;
 if ($selectedUserId) {
     // Get details for the *specific* user (for both admin filter and regular user)
     $stmtUser = $db->prepare("SELECT * FROM users WHERE id=?");
-    $stmtUser->bind_param("i", $selectedUserId);
-    $stmtUser->execute();
-    $selectedUser = $stmtUser->get_result()->fetch_assoc();
+    if ($stmtUser) {
+        $stmtUser->bind_param("i", $selectedUserId);
+        if ($stmtUser->execute()) {
+            $result = $stmtUser->get_result();
+            if ($result) {
+                $selectedUser = $result->fetch_assoc();
+            } else {
+                $error .= " Failed to get user results. DB Error: " . $db->error;
+            }
+        } else {
+            $error .= " Failed to execute user query. DB Error: " . $stmtUser->error;
+        }
+        $stmtUser->close();
+    } else {
+        $error .= " Failed to prepare user query. DB Error: " . $db->error;
+    }
 
     // Calculate total weekly hours for this user
     $stmtHours = $db->prepare("SELECT SUM(TIME_TO_SEC(TIMEDIFF(end_time, start_time))/3600) as total FROM class_schedules WHERE user_id=?");
-    $stmtHours->bind_param("i", $selectedUserId);
-    $stmtHours->execute();
-    $weeklyHours = round($stmtHours->get_result()->fetch_assoc()['total'] ?? 0, 1);
+    if ($stmtHours) { // Check if prepare() succeeded
+        $stmtHours->bind_param("i", $selectedUserId);
+        if ($stmtHours->execute()) { // Check if execute() succeeded
+            $result = $stmtHours->get_result();
+            if ($result) { // Check if get_result() succeeded
+                $row = $result->fetch_assoc();
+                $weeklyHours = round($row['total'] ?? 0, 1);
+            } else {
+                $error .= " Failed to get schedule hour results. DB Error: " . $db->error;
+                $weeklyHours = 0; // Default value
+            }
+        } else {
+            $error .= " Failed to execute schedule hour query. DB Error: " . $stmtHours->error;
+            $weeklyHours = 0; // Default value
+        }
+        $stmtHours->close(); // Good practice to close
+    } else {
+        // This is where the second part of your error comes from
+        $error .= " Failed to prepare schedule hour query. DB Error: " . $db->error; 
+        $weeklyHours = 0; // Default value
+    }
 
 } elseif (isAdmin()) {
     // Admin is in "All Users" view. Get system-wide stats.
-    $totalSchedules = $db->query("SELECT COUNT(*) as c FROM class_schedules")->fetch_assoc()['c'];
-    $totalUsersWithSchedules = $db->query("SELECT COUNT(DISTINCT user_id) as c FROM class_schedules")->fetch_assoc()['c'];
+    $schedulesResult = $db->query("SELECT COUNT(*) as c FROM class_schedules");
+    if ($schedulesResult) {
+        $totalSchedules = $schedulesResult->fetch_assoc()['c'];
+    } else {
+        $totalSchedules = 0; // Default
+        $error .= " Failed to get total schedules count. DB Error: " . $db->error;
+    }
+    
+    $usersResult = $db->query("SELECT COUNT(DISTINCT user_id) as c FROM class_schedules");
+    if ($usersResult) {
+        $totalUsersWithSchedules = $usersResult->fetch_assoc()['c'];
+    } else {
+        $totalUsersWithSchedules = 0; // Default
+        $error .= " Failed to get total users with schedules count. DB Error: " . $db->error;
+    }
 }
+// =================================================================
+// === END: REVISED STATS BLOCK ====================================
+// =================================================================
 // --- End Stats ---
+
 
 $pageTitle = 'Schedule Management';
 $pageSubtitle = isAdmin() ? 'Manage class schedules and working hours' : 'Manage your class schedule';
 include 'includes/header.php';
 ?>
-
-<style>
-/* --- STYLES FOR DYNAMIC SCHEDULE FORM --- */
-#schedule-entry-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    max-height: 50vh; /* Make list scrollable */
-    overflow-y: auto;
-    padding: 0.5rem;
-    background: var(--gray-50);
-    border: 1px solid var(--gray-200);
-    border-radius: 8px;
-}
-
-.schedule-entry-row {
-    display: flex;
-    align-items: flex-end; /* Align to bottom for button */
-    gap: 0.75rem;
-    background: white;
-    padding: 1rem;
-    border-radius: 8px;
-    border: 1px solid var(--gray-300);
-}
-
-.schedule-entry-row .form-group {
-    margin: 0;
-    flex: 1; /* Make form groups flexible */
-}
-
-/* Specific widths for inputs */
-.form-group-day { min-width: 140px; }
-.form-group-subject { flex: 2; } /* Subject takes most space */
-.form-group-time { min-width: 120px; }
-.form-group-room { min-width: 130px; }
-
-.schedule-entry-row .btn-danger {
-    padding: 0.75rem; /* Make button squarer */
-    height: calc(1.5em + 1.5rem + 2px); /* Match form-control height */
-    flex-shrink: 0;
-}
-
-/* Style for disabled add button */
-.btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    background: var(--gray-400);
-}
-
-/* --- NEW: Styles for Manage Toggle --- */
-.card-header-actions {
-    display: flex;
-    gap: 0.75rem;
-}
-
-/* By default, hide the actions column */
-.table-actions {
-    display: none;
-}
-
-/* When the table has the 'managing' class, show the column */
-.managing .table-actions {
-    display: table-cell;
-}
-
-</style>
 
 <div class="main-body">
     <?php if ($error): ?>
@@ -368,7 +354,7 @@ include 'includes/header.php';
     </div>
 
     <div class="card" id="schedule-card">
-        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="card-header card-header-flex">
             <div>
                 <h3>Manage Schedules</h3>
                 <p>Filter schedules to view, edit, or add new ones</p>
@@ -387,11 +373,11 @@ include 'includes/header.php';
             </div>
         </div>
         <div class="card-body">
-            <form method="GET" style="margin-bottom: 2rem; border-bottom: 1px solid var(--gray-200); padding-bottom: 2rem;">
-                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
+            <form method="GET" class="schedule-filter-form">
+                 <div class="schedule-filter-grid">
                     
                     <?php if (isAdmin()): // Show User Filter only to Admins ?>
-                    <div class="form-group" style="margin: 0;">
+                    <div class="form-group">
                         <label>Select User</label>
                         <select name="user_id" class="form-control" onchange="this.form.submit()">
                             <option value="">-- All Users --</option>
@@ -404,7 +390,7 @@ include 'includes/header.php';
                     </div>
                     <?php endif; ?>
 
-                    <div class="form-group" style="margin: 0;">
+                    <div class="form-group">
                         <label>Day of Week</label>
                         <select name="day_of_week" class="form-control" onchange="this.form.submit()">
                             <option value="">All Days</option>
@@ -417,11 +403,11 @@ include 'includes/header.php';
                         </select>
                     </div>
 
-                    <div class="form-group" style="margin: 0;">
+                    <div class="form-group">
                         <label>Start Date (Optional)</label>
                         <input type="date" name="start_date" class="form-control" value="<?= htmlspecialchars($filterStartDate) ?>">
                     </div>
-                     <div class="form-group" style="margin: 0;">
+                     <div class="form-group">
                         <label>End Date (Optional)</label>
                         <input type="date" name="end_date" class="form-control" value="<?= htmlspecialchars($filterEndDate) ?>">
                     </div>
@@ -431,7 +417,7 @@ include 'includes/header.php';
             </form>
 
             <?php if (empty($schedules)): ?>
-                <p style="text-align: center; color: var(--gray-500); padding: 40px;">No schedules found matching the selected filters.</p>
+                <p class="empty-schedule-message">No schedules found matching the selected filters.</p>
             <?php else: ?>
                 <table id="schedule-table"> <thead>
                         <tr>
@@ -456,12 +442,12 @@ include 'includes/header.php';
                         <tr>
                             <?php if (isAdmin() && !$selectedUserId): // Show User data in 'All Users' view ?>
                                 <td>
-                                    <div style="font-weight: 600;"><?= htmlspecialchars($schedule['first_name'] . ' ' . $schedule['last_name']) ?></div>
-                                    <div style="font-size: 0.85rem; color: var(--gray-600);"><?= htmlspecialchars($schedule['faculty_id']) ?></div>
+                                    <div class="table-user-name"><?= htmlspecialchars($schedule['first_name'] . ' ' . $schedule['last_name']) ?></div>
+                                    <div class="table-user-id"><?= htmlspecialchars($schedule['faculty_id']) ?></div>
                                 </td>
                             <?php endif; ?>
 
-                            <td style="font-weight: 600;"><?= htmlspecialchars($schedule['day_of_week']) ?></td>
+                            <td class="table-day-highlight"><?= htmlspecialchars($schedule['day_of_week']) ?></td>
                             <td><?= htmlspecialchars($schedule['subject']) ?></td>
                             <td><?= date('g:i A', strtotime($schedule['start_time'])) ?> - <?= date('g:i A', strtotime($schedule['end_time'])) ?></td>
                             <td><?= number_format($hours, 1) ?>h</td>
@@ -491,7 +477,7 @@ include 'includes/header.php';
 </div>
 
 <div id="addScheduleModal" class="modal">
-    <div class="modal-content" style="max-width: 1000px;">
+    <div class="modal-content modal-lg">
         <form method="POST">
             <div class="modal-header">
                 <h3><i class="fa-solid fa-plus"></i> Add New Schedule(s)</h3>
@@ -505,7 +491,7 @@ include 'includes/header.php';
                 <div id="schedule-entry-list">
                     </div>
 
-                <button type="button" class="btn btn-secondary" style="margin-top: 1rem;" onclick="addScheduleRow()">
+                <button type="button" class="btn btn-secondary mt-1" onclick="addScheduleRow()">
                     <i class="fa-solid fa-plus"></i> Add Another Row
                 </button>
             </div>
@@ -538,7 +524,7 @@ include 'includes/header.php';
                         <option value="Wednesday">Wednesday</option>
                         <option value="Thursday">Thursday</option>
                         <option value="Friday">Friday</option>
-                        <option value="Saturday">Saturday</option>
+                        <option value-="Saturday">Saturday</option>
                     </select>
                 </div>
                 
@@ -574,8 +560,8 @@ include 'includes/header.php';
 <div id="deleteScheduleModal" class="modal">
     <div class="modal-content modal-small">
         <form method="POST">
-            <div class="modal-header" style="background: var(--red-50);">
-                <h3 style="color: var(--red-700);"><i class="fa-solid fa-triangle-exclamation"></i> Confirm Delete</h3>
+            <div class="modal-header modal-header-danger">
+                <h3><i class="fa-solid fa-triangle-exclamation"></i> Confirm Delete</h3>
                 <button type="button" class="modal-close" onclick="closeModal('deleteScheduleModal')">
                     <i class="fa-solid fa-times"></i>
                 </button>
@@ -583,14 +569,14 @@ include 'includes/header.php';
             <div class="modal-body">
                 <input type="hidden" name="schedule_id_delete" id="deleteScheduleId">
                 <input type="hidden" name="user_id_delete" id="deleteUserId">
-                <p style="font-size: 1rem; color: var(--gray-700);">
+                <p class="fs-large">
                     Are you sure you want to permanently delete the following schedule?
                 </p>
-                <div style="background: var(--gray-50); padding: 1rem; border-radius: 8px; margin-top: 1rem; border: 1px solid var(--gray-200);">
-                    <strong id="deleteScheduleSubject" style="display: block; font-size: 1.1rem; color: var(--gray-800);"></strong>
-                    <span id="deleteScheduleDay" style="color: var(--gray-600);"></span>
+                <div class="modal-confirm-detail">
+                    <strong id="deleteScheduleSubject"></strong>
+                    <span id="deleteScheduleDay"></span>
                 </div>
-                <p style="font-size: 0.9rem; color: var(--red-600); margin-top: 1rem;">
+                <p class="fs-small text-danger mt-1">
                     This action cannot be undone.
                 </p>
             </div>

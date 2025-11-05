@@ -22,7 +22,17 @@ $pageSubtitle = "Complete user registration by scanning fingerprints for biometr
 include 'includes/header.php';
 ?>
 
-<div class="main-body registration-page"> <div class="search-bar-container">
+<div class="main-body registration-page"> 
+    
+    <!-- Add error/success alerts here if needed -->
+    <?php if (isset($error)): ?>
+        <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
+    <?php endif; ?>
+    <?php if (isset($success)): ?>
+        <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
+    <?php endif; ?>
+
+    <div class="search-bar-container">
         <i class="fa-solid fa-search search-icon"></i>
         <input type="text" id="userSearchInput" class="search-input" placeholder="Search by name, faculty ID, or email...">
     </div>
@@ -58,7 +68,15 @@ include 'includes/header.php';
     </div>
 
     <div class="pending-registrations-section">
-        <h3 class="section-title">Pending Registrations (<?= $pendingCount ?>)</h3>
+        
+        <!-- MODIFIED: Added flex layout and button -->
+        <div class="card-header-flex" style="margin-bottom: 1.5rem; align-items: center;">
+            <h3 class="section-title" style="margin: 0;">Pending Registrations (<?= $pendingCount ?>)</h3>
+            <button class="btn btn-primary" onclick="openModal('notifyModal')" <?= empty($pendingUsers) ? 'disabled' : '' ?>>
+                <i class="fa-solid fa-bell"></i> Notify All Pending
+            </button>
+        </div>
+
 
         <?php if (empty($pendingUsers)): ?>
             <div class="empty-state-card">
@@ -66,7 +84,7 @@ include 'includes/header.php';
                 <p class="empty-text-title">No Pending Registrations</p>
                 <p class="empty-text-subtitle">All active users have completed fingerprint registration.</p>
                 <a href="create_account.php" class="btn btn-primary" style="margin-top: 1rem;">
-                    <i class="fa fa-user-plus"></i> Create New Account
+                    <i class="fa-fa-user-plus"></i> Create New Account
                 </a>
             </div>
         <?php else: ?>
@@ -93,6 +111,36 @@ include 'includes/header.php';
     </div>
 </div>
 
+
+<!-- Notify All Modal (Copied from previous step) -->
+<div id="notifyModal" class="modal">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-bell"></i> Notify Pending Users</h3>
+            <button type="button" class="modal-close" onclick="closeModal('notifyModal')">
+                <i class="fa-solid fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="fs-large">
+                Are you sure you want to send a dashboard notification to all 
+                <strong><?= $pendingCount ?></strong> pending user(s)?
+            </p>
+            <p class="fs-small" style="color: var(--gray-600); margin-top: 1rem;">
+                They will receive a pop-up reminder on their dashboard to complete their fingerprint registration.
+            </p>
+            <div id="notify-status-message" style="margin-top: 1rem;"></div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('notifyModal')">Cancel</button>
+            <button type="button" id="confirmNotifyBtn" class="btn btn-primary" onclick="sendNotifications()">
+                <i class="fa-solid fa-paper-plane"></i> Yes, Notify All
+            </button>
+        </div>
+    </div>
+</div>
+
+
 <script>
 // Simple live search functionality
 document.addEventListener('DOMContentLoaded', function() {
@@ -114,6 +162,49 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// NEW SCRIPT for notification modal
+function sendNotifications() {
+    const notifyBtn = document.getElementById('confirmNotifyBtn');
+    const statusMessage = document.getElementById('notify-status-message');
+
+    notifyBtn.disabled = true;
+    notifyBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+    statusMessage.innerHTML = '';
+    statusMessage.className = '';
+
+    fetch('notify_pending_users.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            statusMessage.textContent = data.message;
+            statusMessage.className = 'alert alert-success';
+            notifyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Done';
+            // Close modal after 2 seconds
+            setTimeout(() => {
+                closeModal('notifyModal');
+                notifyBtn.disabled = false;
+                notifyBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Yes, Notify All';
+            }, 2000);
+        } else {
+            statusMessage.textContent = 'Error: ' + data.message;
+            statusMessage.className = 'alert alert-error';
+            notifyBtn.disabled = false;
+            notifyBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Yes, Notify All';
+        }
+    })
+    .catch(error => {
+        statusMessage.textContent = 'A network error occurred. Please try again.';
+        statusMessage.className = 'alert alert-error';
+        notifyBtn.disabled = false;
+        notifyBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Yes, Notify All';
+    });
+}
 </script>
 
 <?php include 'includes/footer.php'; ?>
