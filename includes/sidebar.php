@@ -19,14 +19,18 @@
             <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>
             <span class="nav-text">Home</span>
         </a>
+        
+        <?php if (isAdmin()): // Admin-only links ?>
         <a href="create_account.php" class="nav-item">
             <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
             <span class="nav-text">Create Account</span>
         </a>
         <a href="complete_registration.php" class="nav-item">
-             <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 7c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6.1 4.95c.71.71 1.17 1.66 1.17 2.72 0 1.06-.46 2.01-1.17 2.72-.71.71-1.66 1.17-2.72 1.17-1.06 0-2.01-.46-2.72-1.17-.71-.71-1.17-1.66-1.17-2.72 0-1.06.46-2.01 1.17-2.72.71-.71 1.66-1.17 2.72-1.17 1.06 0 2.01.46 2.72 1.17zM7.9 16.95c.71.71 1.66 1.17 2.72 1.17 1.06 0 2.01-.46 2.72-1.17.71-.71 1.17-1.66 1.17-2.72 0-1.06-.46-2.01-1.17-2.72-.71-.71-1.66-1.17-2.72-1.17-1.06 0-2.01.46-2.72 1.17-.71.71-1.17 1.66-1.17 2.72 0 1.06.46 2.01 1.17 2.72z"/></svg>
+             <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 7c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6.1 4.95c.71.71 1.17 1.66 1.17 2.72 0 1.06-.46 2.01-1.17 2.72-.71.71-1.66 1.17-2.72 1.17-1.06 0-2.01-.46-2.72-1.17-.71-.71-1.17-1.66-1.17-2.72 0-1.06.46-2.01 1.17-2.72.71-.71 1.66-1.17 2.72-1.17 1.06 0 2.01.46 2.72 1.17zM7.9 16.95c.71.71 1.66 1.17 2.72 1.17 1.06 0 2.01-.46 2.72-1.17.71-.71 1.17-1.66 1.17-2.72 0-1.06-.46 2.01-1.17-2.72-.71-.71-1.66-1.17-2.72-1.17-1.06 0-2.01.46-2.72 1.17-.71.71-1.17 1.66-1.17 2.72 0 1.06.46 2.01 1.17 2.72z"/></svg>
             <span class="nav-text">Complete Registration</span>
         </a>
+        <?php endif; // End admin-only links ?>
+        
         <a href="attendance_reports.php" class="nav-item">
             <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
             <span class="nav-text">Attendance Reports</span>
@@ -40,10 +44,12 @@
     <div class="sidebar-footer">
 
         <div id="settings-menu">
+            <?php if (isAdmin()): // Admin-only settings link ?>
             <a href="create_admin.php" class="settings-menu-item">
                 <i class="fa-solid fa-user-shield"></i>
                 <span>Create Admin</span>
             </a>
+            <?php endif; ?>
             <a href="profile.php" class="settings-menu-item">
                 <i class="fa-solid fa-user"></i>
                 <span>My Profile</span>
