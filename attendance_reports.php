@@ -1,29 +1,55 @@
 <?php
 require_once 'config.php';
-requireAdmin(); // Use requireAdmin to ensure only admins can access
+// *** MODIFIED: Allow all logged-in users ***
+requireLogin(); 
 
 $db = db();
 $error = '';
 $success = '';
+$currentUserId = $_SESSION['user_id'];
 
 // --- Get Filter Parameters ---
-$filterSearch = $_GET['search'] ?? ''; // New search filter
-$filterStartDate = $_GET['start_date'] ?? date('Y-m-d'); // Default to today for initial view
-$filterEndDate = $_GET['end_date'] ?? date('Y-m-d');   // Default to today for initial view
-// Placeholders for filters shown in the image but not yet implemented in DB/logic
+$filterSearch = $_GET['search'] ?? ''; 
+$filterStartDate = $_GET['start_date'] ?? date('Y-m-d'); // Default to today
+$filterEndDate = $_GET['end_date'] ?? date('Y-m-d');   // Default to today
 $filterDepartment = $_GET['department'] ?? 'all';
 $filterType = $_GET['type'] ?? 'all';
 
+// --- Page-specific variables based on role ---
+if (isAdmin()) {
+    $pageTitle = 'Attendance Reports';
+    $pageSubtitle = 'View and manage all user attendance records';
+} else {
+    $pageTitle = 'My Attendance';
+    $pageSubtitle = 'View your personal attendance history';
+}
+
 // --- Calculate Today's Stats ---
-$today = date('Y-m-d');
-$entriesTodayResult = $db->query("SELECT COUNT(*) as c FROM attendance_records WHERE date = '$today' AND time_in IS NOT NULL");
-$entriesToday = $entriesTodayResult ? $entriesTodayResult->fetch_assoc()['c'] : 0;
+if (isAdmin()) {
+    $today = date('Y-m-d');
+    $entriesTodayResult = $db->query("SELECT COUNT(*) as c FROM attendance_records WHERE date = '$today' AND time_in IS NOT NULL");
+    $entriesToday = $entriesTodayResult ? $entriesTodayResult->fetch_assoc()['c'] : 0;
 
-$exitsTodayResult = $db->query("SELECT COUNT(*) as c FROM attendance_records WHERE date = '$today' AND time_out IS NOT NULL");
-$exitsToday = $exitsTodayResult ? $exitsTodayResult->fetch_assoc()['c'] : 0;
+    $exitsTodayResult = $db->query("SELECT COUNT(*) as c FROM attendance_records WHERE date = '$today' AND time_out IS NOT NULL");
+    $exitsToday = $exitsTodayResult ? $exitsTodayResult->fetch_assoc()['c'] : 0;
 
-$presentTodayResult = $db->query("SELECT COUNT(DISTINCT user_id) as c FROM attendance_records WHERE date = '$today' AND time_in IS NOT NULL");
-$presentToday = $presentTodayResult ? $presentTodayResult->fetch_assoc()['c'] : 0;
+    $presentTodayResult = $db->query("SELECT COUNT(DISTINCT user_id) as c FROM attendance_records WHERE date = '$today' AND time_in IS NOT NULL");
+    $presentToday = $presentTodayResult ? $presentTodayResult->fetch_assoc()['c'] : 0;
+} else {
+    // --- Stats for regular user ---
+    $today = date('Y-m-d');
+    $stmtToday = $db->prepare("SELECT time_in, time_out FROM attendance_records WHERE date = ? AND user_id = ?");
+    $stmtToday->bind_param("si", $today, $currentUserId);
+    $stmtToday->execute();
+    $todayRecord = $stmtToday->get_result()->fetch_assoc();
+
+    $entriesToday = $todayRecord && $todayRecord['time_in'] ? 1 : 0;
+    $exitsToday = $todayRecord && $todayRecord['time_out'] ? 1 : 0;
+
+    // Change "Users Present" to "Total Days Present (All Time)" for the user
+    $presentTodayResult = $db->query("SELECT COUNT(*) as c FROM attendance_records WHERE user_id = $currentUserId AND time_in IS NOT NULL");
+    $presentToday = $presentTodayResult ? $presentTodayResult->fetch_assoc()['c'] : 0;
+}
 
 // --- Build Query for Table Data ---
 $query = "
@@ -35,20 +61,14 @@ $query = "
 $params = [];
 $types = "";
 
-// Apply Date Range Filter
-if ($filterStartDate && $filterEndDate) {
-    $query .= " AND ar.date BETWEEN ? AND ?";
-    $params[] = $filterStartDate;
-    $params[] = $filterEndDate;
-    $types .= "ss";
-} elseif ($filterStartDate) { // Handle single date selection if end date is empty
-    $query .= " AND ar.date = ?";
-    $params[] = $filterStartDate;
-    $types .= "s";
-}
-
-// Apply Search Filter (searching name, faculty_id, email)
-if (!empty($filterSearch)) {
+// --- MODIFIED: Apply role-based query constraints ---
+if (!isAdmin()) {
+    // Regular user can ONLY see their own records
+    $query .= " AND ar.user_id = ?";
+    $params[] = $currentUserId;
+    $types .= "i";
+} elseif (!empty($filterSearch)) {
+    // Admin is searching
     $searchTerm = "%" . $filterSearch . "%";
     $query .= " AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.faculty_id LIKE ? OR u.email LIKE ?)";
     $params[] = $searchTerm;
@@ -57,9 +77,22 @@ if (!empty($filterSearch)) {
     $params[] = $searchTerm;
     $types .= "ssss";
 }
+// --- End modification ---
+
+// Apply Date Range Filter (applies to both admin and user)
+if ($filterStartDate && $filterEndDate) {
+    $query .= " AND ar.date BETWEEN ? AND ?";
+    $params[] = $filterStartDate;
+    $params[] = $filterEndDate;
+    $types .= "ss";
+} elseif ($filterStartDate) { 
+    $query .= " AND ar.date = ?";
+    $params[] = $filterStartDate;
+    $types .= "s";
+}
 
 // Add Ordering
-$query .= " ORDER BY ar.date DESC, ar.time_in ASC"; // Order by date then time_in
+$query .= " ORDER BY ar.date DESC, ar.time_in ASC"; 
 
 // Prepare and Execute Query
 $stmt = $db->prepare($query);
@@ -74,21 +107,21 @@ if ($stmt) {
     $records = [];
 }
 
-$totalRecords = count($records); // Count based on filtered results for the table
+$totalRecords = count($records); // Count based on filtered results
 
-// Set Page Variables
-$pageTitle = 'Attendance Reports';
-$pageSubtitle = 'View and manage all user attendance records';
 include 'includes/header.php';
 ?>
 
-<div class="main-body attendance-reports-page"> <div class="report-header">
-        <div>
-            </div>
+<div class="main-body attendance-reports-page"> 
+    
+    <?php if (isAdmin()): ?>
+    <div class="report-header">
+        <div></div>
         <button class="btn history-btn">
             <i class="fa-solid fa-clock-rotate-left"></i> History
         </button>
     </div>
+    <?php endif; ?>
 
     <div class="report-stats-grid">
         <div class="report-stat-card">
@@ -114,7 +147,7 @@ include 'includes/header.php';
                  <i class="fa-solid fa-user-check"></i>
             </div>
             <div class="stat-content">
-                <span class="stat-label">Users Present</span>
+                <span class="stat-label"><?= isAdmin() ? 'Users Present' : 'Total Days Present' ?></span>
                 <span class="stat-value"><?= $presentToday ?></span>
             </div>
         </div>
@@ -123,56 +156,95 @@ include 'includes/header.php';
                  <i class="fa-solid fa-list-alt"></i>
             </div>
             <div class="stat-content">
-                <span class="stat-label">Total Records</span>
+                <span class="stat-label"><?= isAdmin() ? 'Total Records' : 'My Records (Filtered)' ?></span>
                 <span class="stat-value"><?= $totalRecords ?></span> </div>
         </div>
     </div>
 
+    <?php if (isAdmin()): ?>
     <div class="filter-export-section card">
         <div class="card-header">
             <h3><i class="fa-solid fa-filter"></i> Filter & Export</h3>
             <p>Filter and export attendance records for all users</p>
         </div>
         <div class="card-body">
-            <form method="GET" class="filter-controls">
-                <div class="form-group filter-item">
-                    <label for="searchFilter">Search</label>
-                    <div class="search-wrapper">
-                        <i class="fa-solid fa-search search-icon-filter"></i>
-                        <input type="text" id="searchFilter" name="search" class="form-control search-input-filter" placeholder="Search users..." value="<?= htmlspecialchars($filterSearch) ?>">
+            <form method="GET" class="filter-controls-new">
+                <div class="filter-inputs">
+                    <div class="form-group filter-item">
+                        <label for="searchFilter">Search</label>
+                        <div class="search-wrapper">
+                            <i class="fa-solid fa-search search-icon-filter"></i>
+                            <input type="text" id="searchFilter" name="search" class="form-control search-input-filter" placeholder="Search users..." value="<?= htmlspecialchars($filterSearch) ?>">
+                        </div>
+                    </div>
+                    <div class="form-group filter-item">
+                        <label for="dateRangeStartFilter">Date Range</label>
+                         <div style="display: flex; gap: 0.5rem;">
+                             <input type="date" id="dateRangeStartFilter" name="start_date" class="form-control" value="<?= htmlspecialchars($filterStartDate) ?>">
+                             <input type="date" id="dateRangeEndFilter" name="end_date" class="form-control" value="<?= htmlspecialchars($filterEndDate) ?>">
+                         </div>
+                    </div>
+                    <div class="form-group filter-item">
+                        <label for="deptFilter">Department</label>
+                        <select id="deptFilter" name="department" class="form-control">
+                            <option value="all" <?= $filterDepartment == 'all' ? 'selected' : '' ?>>All Departments</option>
+                            </select>
                     </div>
                 </div>
-                <div class="form-group filter-item">
-                    <label for="dateRangeFilter">Date Range</label>
-                     <div style="display: flex; gap: 0.5rem;">
-                         <input type="date" id="dateRangeStartFilter" name="start_date" class="form-control" value="<?= htmlspecialchars($filterStartDate) ?>">
-                         <input type="date" id="dateRangeEndFilter" name="end_date" class="form-control" value="<?= htmlspecialchars($filterEndDate) ?>">
-                     </div>
+                
+                <div class="filter-actions-new">
+                    <button type="submit" class="btn btn-primary apply-filter-btn">
+                        <i class="fa-solid fa-check"></i> Apply Filters
+                    </button>
+                    <a href="print_dtr.php?start_date=<?= $filterStartDate ?>&end_date=<?= $filterEndDate ?>&search=<?= urlencode($filterSearch) ?>"
+                        class="btn btn-primary download-btn"
+                        id="printDtrBtn">
+                        <i class="fa-solid fa-download"></i> Download DTR PDF
+                    </a>
+                    <a href="export_attendance.php?start_date=<?= $filterStartDate ?>&end_date=<?= $filterEndDate ?>&search=<?= urlencode($filterSearch) ?>"
+                        class="btn btn-danger export-csv-btn">
+                        <i class="fa-solid fa-file-csv"></i> Export CSV
+                    </a>
                 </div>
-                <div class="form-group filter-item">
-                    <label for="deptFilter">Department</label>
-                    <select id="deptFilter" name="department" class="form-control">
-                        <option value="all" <?= $filterDepartment == 'all' ? 'selected' : '' ?>>All Departments</option>
-                        </select>
-                </div>
-                    <div class="filter-actions filter-item">
-                        <button type="submit" class="btn btn-primary apply-filter-btn">Apply Filters</button>
-                            <a href="print_dtr.php?start_date=<?= $filterStartDate ?>&end_date=<?= $filterEndDate ?>&search=<?= urlencode($filterSearch) ?>"
-                            class="btn btn-primary download-btn"
-                            id="printDtrBtn"
-                            target="_blank">
-                            <i class="fa-solid fa-download"></i> Download DTR PDF
-                            </a>
-     
-                            <a href="export_attendance.php?start_date=<?= $filterStartDate ?>&end_date=<?= $filterEndDate ?>&search=<?= urlencode($filterSearch) ?>"
-                            class="btn btn-danger export-csv-btn">
-                            <i class="fa-solid fa-file-csv"></i> Export CSV
-                            </a>
-                    </div>
             </form>
         </div>
     </div>
-
+    
+    <?php else: ?>
+    <div class="filter-export-section card">
+        <div class="card-header">
+            <h3><i class="fa-solid fa-filter"></i> Filter & Export</h3>
+            <p>Filter your attendance records by date and export</p>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="filter-controls-new">
+                <div class="filter-inputs" style="grid-template-columns: 1fr;"> <div class="form-group filter-item">
+                        <label for="dateRangeStartFilter">Date Range</label>
+                         <div style="display: flex; gap: 0.5rem;">
+                             <input type="date" id="dateRangeStartFilter" name="start_date" class="form-control" value="<?= htmlspecialchars($filterStartDate) ?>">
+                             <input type="date" id="dateRangeEndFilter" name="end_date" class="form-control" value="<?= htmlspecialchars($filterEndDate) ?>">
+                         </div>
+                    </div>
+                </div>
+                
+                <div class="filter-actions-new">
+                    <button type="submit" class="btn btn-primary apply-filter-btn">
+                        <i class="fa-solid fa-check"></i> Apply Filters
+                    </button>
+                    <a href="print_dtr.php?start_date=<?= $filterStartDate ?>&end_date=<?= $filterEndDate ?>&user_id=<?= $currentUserId ?>"
+                        class="btn btn-primary download-btn"
+                        id="printDtrBtn">
+                        <i class="fa-solid fa-download"></i> Download DTR PDF
+                    </a>
+                    <a href="export_attendance.php?start_date=<?= $filterStartDate ?>&end_date=<?= $filterEndDate ?>&user_id=<?= $currentUserId ?>"
+                        class="btn btn-danger export-csv-btn">
+                        <i class="fa-solid fa-file-csv"></i> Export CSV
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    <?php endif; ?>
     <div class="card attendance-table-card">
          <div class="card-body" style="padding: 0;"> <?php if ($error): ?>
                 <div class="alert alert-error" style="margin: 1rem;"><?= htmlspecialchars($error) ?></div>
@@ -182,8 +254,11 @@ include 'includes/header.php';
                 <table class="attendance-table-new">
                     <thead>
                         <tr>
-                            <th>User</th>
-                            <th>Department</th> <th>Date</th>
+                            <?php if (isAdmin()): ?>
+                                <th>User</th>
+                                <th>Department</th>
+                            <?php endif; ?>
+                            <th>Date</th>
                             <th>Time In</th>
                             <th>Time Out</th>
                         </tr>
@@ -191,6 +266,7 @@ include 'includes/header.php';
                     <tbody>
                         <?php foreach ($records as $record): ?>
                         <tr>
+                            <?php if (isAdmin()): ?>
                             <td>
                                 <div class="user-cell">
                                     <span class="user-name"><?= htmlspecialchars($record['first_name'] . ' ' . $record['last_name']) ?></span>
@@ -198,8 +274,10 @@ include 'includes/header.php';
                                 </div>
                             </td>
                             <td>
-                                <span class="department-cell">Administration</span> <?php // echo htmlspecialchars($record['department'] ?? 'N/A'); // Use this when department data is available ?>
+                                <span class="department-cell">Administration</span> <?php // echo htmlspecialchars($record['department'] ?? 'N/A'); ?>
                             </td>
+                            <?php endif; ?>
+                            
                             <td>
                                 <span class="date-cell"><?= date('m/d/Y', strtotime($record['date'])) ?></span>
                             </td>
@@ -208,7 +286,7 @@ include 'includes/header.php';
                                     <div class="time-cell time-in">
                                         <i class="fa-solid fa-arrow-right-to-bracket"></i>
                                         <span><?= date('h:i A', strtotime($record['time_in'])) ?></span>
-                                        <span class="status-label"><?= htmlspecialchars($record['status']) // Display status like 'Late' ?></span>
+                                        <span class="status-label"><?= htmlspecialchars($record['status']) ?></span>
                                     </div>
                                 <?php else: ?>
                                     <div class="time-cell no-time">-</div>
@@ -219,9 +297,6 @@ include 'includes/header.php';
                                     <div class="time-cell time-out">
                                         <i class="fa-solid fa-arrow-right-from-bracket"></i>
                                         <span><?= date('h:i A', strtotime($record['time_out'])) ?></span>
-                                         <?php
-                                            // Optional: You could add an 'Overtime' or 'Undertime' label here based on comparison with expected end time
-                                         ?>
                                     </div>
                                 <?php else: ?>
                                     <div class="time-cell no-time">-</div>
@@ -237,55 +312,37 @@ include 'includes/header.php';
 </div>
 
 <script>
-// Basic script to enable/disable DTR button based on search (user selection is removed)
-// You might want more complex logic if DTR should only be for one user
 document.addEventListener('DOMContentLoaded', function() {
     const printBtn = document.getElementById('printDtrBtn');
-    const searchInput = document.getElementById('searchFilter');
+    const searchInput = document.getElementById('searchFilter'); // This will be null for non-admins, which is fine.
 
     function checkDtrButtonState() {
-        if (!printBtn) return; // Exit if button doesn't exist
+        if (!printBtn) return; 
 
-        // Simple check: If search is empty, maybe disable? Or always enable?
-        // For now, let's keep it enabled but update the URL
         const startDate = document.getElementById('dateRangeStartFilter').value;
         const endDate = document.getElementById('dateRangeEndFilter').value;
-        const searchVal = searchInput ? searchInput.value : '';
-
-        // Update href with current filter values
-        printBtn.setAttribute('href', `print_dtr.php?start_date=${startDate}&end_date=${endDate}&search=${encodeURIComponent(searchVal)}`);
-
-        // Example: Disable if search is empty (adjust logic as needed)
-        /*
-        if (searchVal.trim() === '') {
-            printBtn.classList.add('btn-disabled-custom'); // Add a custom disabled style class
-            printBtn.style.pointerEvents = 'none';
-        } else {
-            printBtn.classList.remove('btn-disabled-custom');
-            printBtn.style.pointerEvents = 'auto';
-        }
-        */
+        
+        // Admin URL
+        let href = `print_dtr.php?start_date=${startDate}&end_date=${endDate}`;
+        
+        <?php if (isAdmin()): ?>
+            const searchVal = searchInput ? searchInput.value : '';
+            href += `&search=${encodeURIComponent(searchVal)}`;
+        <?php else: ?>
+            // User URL
+            href += `&user_id=<?= $currentUserId ?>`;
+        <?php endif; ?>
+        
+        printBtn.setAttribute('href', href);
     }
-
-     // Add a simple disabled style (if needed)
-     /*
-    if (!document.getElementById('btn-disabled-style-custom')) {
-        const style = document.createElement('style');
-        style.id = 'btn-disabled-style-custom';
-        style.innerHTML = `.btn-disabled-custom { opacity: 0.6; cursor: not-allowed; }`;
-        document.head.appendChild(style);
-    }
-    */
-
-    // Check state on page load
+    
     checkDtrButtonState();
 
-    // Add listeners to update button state when filters change
-    const filterInputs = document.querySelectorAll('.filter-controls input, .filter-controls select');
+    const filterInputs = document.querySelectorAll('.filter-controls-new input, .filter-controls-new select');
     filterInputs.forEach(input => {
         input.addEventListener('change', checkDtrButtonState);
         if (input.type === 'text') {
-            input.addEventListener('input', checkDtrButtonState); // Update as user types in search
+            input.addEventListener('input', checkDtrButtonState); 
         }
     });
 });

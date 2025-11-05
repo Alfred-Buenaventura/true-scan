@@ -72,9 +72,10 @@ include 'includes/header.php';
         <i class="fa fa-fingerprint fa-4x text-emerald-600" id="fingerIcon"></i>
       </div>
       <p class="text-gray-700 font-medium mb-4" id="scanStatus">Ready to scan fingerprint...</p>
+      
       <div class="flex gap-3 mb-6">
-        <?php for ($i = 1; $i <= 5; $i++): ?>
-          <div id="scanStep<?= $i ?>" class="scan-step w-6 h-6 rounded-full border border-gray-300"></div>
+        <?php for ($i = 1; $i <= 3; $i++): ?>
+          <div id="scanStep<?= $i ?>" class="scan-step w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center font-bold text-gray-500"><?= $i ?></div>
         <?php endfor; ?>
       </div>
 
@@ -92,8 +93,8 @@ include 'includes/header.php';
       <ul class="list-disc list-inside mt-2 text-blue-700 space-y-1">
         <li>Ensure your finger is clean and dry.</li>
         <li>Place your finger firmly on the scanner.</li>
+        <li>You will need to scan your finger **3 times** to complete the registration.</li>
         <li>Hold still until each scan is complete.</li>
-        <li>All 5 scans must be completed for successful registration.</li>
       </ul>
     </div>
   </div>
@@ -116,12 +117,36 @@ include 'includes/header.php';
                 <li>The necessary ZKTeco service or software is running on the computer.</li>
                 <li>No other application is currently using the device.</li>
             </ul>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-primary" id="deviceErrorOkBtn">OK</button>
+        </div>
+    </div>
+</div>
+
+<div id="retryConnectionModal" class="modal">
+    <div class="modal-content modal-small">
+        <div class="modal-header" style="background-color: var(--blue-50);">
+            <h3 style="color: var(--blue-700);"><i class="fa-solid fa-plug"></i> Retry Connection?</h3>
+            <button type="button" class="modal-close" onclick="closeModal('retryConnectionModal')">
+                <i class="fa-solid fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--gray-700); font-size: 1rem;">
+                The device is still not detected. Please check the connection again.
+            </p>
             <p style="color: var(--gray-700); font-size: 1rem; margin-top: 1rem;">
-                Once checked, you may need to refresh this page.
+                Would you like to try connecting again?
             </p>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-primary" onclick="closeModal('deviceErrorModal')">OK</button>
+            <button type="button" class="btn btn-secondary" onclick="window.location.href='complete_registration.php'">
+                <i class="fa-solid fa-arrow-left"></i> Back to List
+            </button>
+            <button type="button" class="btn btn-primary" id="retryConnectBtn">
+                <i class="fa-solid fa-refresh"></i> Retry Connection
+            </button>
         </div>
     </div>
 </div>
@@ -143,7 +168,7 @@ include 'includes/header.php';
                 <li>The fingerprint scanner surface is clean.</li>
              </ul>
              <p style="color: var(--gray-700); font-size: 1rem; margin-top: 1rem;">
-                Press "Proceed" to start the scan.
+                Press "Proceed" to start the 3-step scan.
             </p>
         </div>
         <div class="modal-footer">
@@ -153,10 +178,59 @@ include 'includes/header.php';
     </div>
 </div>
 
+<div id="scanFailedModal" class="modal">
+    <div class="modal-content modal-small">
+        <div class="modal-header" style="background-color: var(--yellow-50);">
+            <h3 style="color: var(--yellow-700);"><i class="fa-solid fa-triangle-exclamation"></i> Scan Failed</h3>
+            <button type="button" class="modal-close" onclick="closeModal('scanFailedModal')">
+                <i class="fa-solid fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--gray-700); font-size: 1rem;">
+                The scan was unsuccessful. Please try again.
+            </p>
+            <p id="scanFailedAttempts" style="color: var(--gray-600); font-size: 0.9rem; margin-top: 0.5rem;"></p>
+            
+            <ul style="list-style: disc; padding-left: 1.5rem; margin-top: 1rem; color: var(--gray-600); font-size: 0.9rem;">
+                <li>Make sure the fingerprint scanner surface is clean.</li>
+                <li>Ensure the user's finger is clean, dry, and placed firmly.</li>
+            </ul>
+        </div>
+        <div class="modal-footer">
+             <button type="button" class="btn btn-secondary" onclick="window.location.href='complete_registration.php'">Cancel</button>
+             <button type="button" id="retryScanBtn" class="btn btn-primary">Try Again</button>
+        </div>
+    </div>
+</div>
+
+<div id="maxFailuresModal" class="modal">
+    <div class="modal-content modal-small">
+        <div class="modal-header" style="background-color: var(--red-50);">
+            <h3 style="color: var(--red-700);"><i class="fa-solid fa-times-circle"></i> Maximum Attempts Reached</h3>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--gray-700); font-size: 1rem;">
+                You have failed to scan 5 times in a row.
+            </p>
+            <p style="color: var(--gray-700); font-size: 1rem; margin-top: 1rem;">
+                Please click "OK" to return to the user list and restart the registration process.
+            </p>
+        </div>
+        <div class="modal-footer">
+             <button type="button" id="maxFailuresOkBtn" class="btn btn-primary">OK</button>
+        </div>
+    </div>
+</div>
+
 
 <script>
+// *** MODIFIED: Updated JS logic ***
 let scanStep = 1;
-const totalSteps = 5;
+const totalSteps = 3; // Changed to 3
+let retryAttempts = 0; // New: tracks consecutive failures
+const maxRetryAttempts = 5; // New: max failures per step
+
 let isDeviceConnected = false; // Track connection status
 let socket = null; // WebSocket connection
 
@@ -167,23 +241,25 @@ const scanBtn = document.getElementById('scanBtn');
 const fingerIcon = document.getElementById('fingerIcon');
 const scanStatus = document.getElementById('scanStatus');
 
-// --- Modal Helper Functions (Ensure openModal/closeModal are defined in main.js) ---
-// If not, add them here or in main.js:
-/*
-function openModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) modal.style.display = 'flex';
+
+// --- NEW: Retry Connection Function ---
+function retryConnection() {
+    closeModal('retryConnectionModal');
+    
+    // Reset status text to "Connecting"
+    deviceStatusContainer.classList.remove('border-red-200', 'bg-red-50', 'text-red-600', 'border-emerald-200', 'bg-emerald-50', 'text-emerald-700');
+    deviceStatusContainer.classList.add('border-gray-200', 'bg-gray-50', 'text-gray-600');
+    deviceStatusIcon.className = 'fa fa-spinner fa-spin';
+    deviceStatusText.textContent = "Connecting to device...";
+    scanBtn.disabled = true;
+
+    // Attempt to connect again
+    connectWebSocket();
 }
-function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) modal.style.display = 'none';
-}
-*/
 
 
 // --- WebSocket Connection Logic ---
 function connectWebSocket() {
-    // ZKTeco WebSocket SDK (ensure ZK service is running locally)
     socket = new WebSocket("ws://127.0.0.1:8080");
 
     socket.onopen = () => {
@@ -202,31 +278,56 @@ function connectWebSocket() {
             const data = JSON.parse(event.data);
             console.log("Message from server:", data);
 
-            // Handle scan progress
-            if (data.status === "success" && data.template) {
-                document.getElementById('fingerprintData').value = data.template;
+            // --- MODIFIED: Updated success logic ---
+            if (data.status === "success" && data.step === scanStep) {
+                // Mark current step as complete
+                const stepEl = document.getElementById(`scanStep${scanStep}`);
+                if (stepEl) {
+                    stepEl.classList.add('bg-emerald-500', 'border-emerald-500');
+                    stepEl.classList.remove('text-gray-500');
+                    stepEl.classList.add('text-white');
+                }
                 scanStatus.textContent = `Scan ${scanStep} complete.`;
-                document.getElementById(`scanStep${scanStep}`).classList.add('bg-emerald-500', 'border-emerald-500');
+                
+                // Reset retry counter on success
+                retryAttempts = 0;
+                
+                // Move to next step
+                scanStep++;
 
-                if (scanStep < totalSteps) {
-                    scanStep++;
-                    setTimeout(() => {
-                        scanStatus.textContent = "Place your finger again for next scan...";
-                    }, 1500);
-                } else {
+                if (scanStep > totalSteps) {
+                    // All 3 steps are done
                     fingerIcon.classList.remove('pulse');
                     scanStatus.textContent = "All scans complete! Saving...";
-                    // Submit the form after a short delay
+                    // Assume C# bridge sends final template on last success
+                    document.getElementById('fingerprintData').value = data.template; 
+                    // Submit the form
                     setTimeout(() => document.getElementById('fingerprintForm').submit(), 1500);
+                } else {
+                    // Prompt for the next step
+                    setTimeout(promptForScan, 1500); // Wait 1.5s, then prompt
                 }
+
+            // --- MODIFIED: Updated error logic ---
             } else if (data.status === "error") {
                 fingerIcon.classList.remove('pulse');
-                scanStatus.textContent = `Scan failed: ${data.message || 'Please try again.'}`;
-                // Optionally reset steps or allow retry
-            } else if (data.status === "progress") {
-                // Handle intermediate messages if the device sends them
-                scanStatus.textContent = data.message || "Scanning...";
+                retryAttempts++; // Increment failure count
+
+                if (retryAttempts >= maxRetryAttempts) {
+                    // Max failures reached
+                    scanStatus.textContent = "Maximum retry attempts reached. Please restart.";
+                    openModal('maxFailuresModal');
+                } else {
+                    // Show retry-able error
+                    let remaining = maxRetryAttempts - retryAttempts;
+                    const attemptsMsg = `You have ${remaining} ${remaining === 1 ? 'attempt' : 'attempts'} remaining.`;
+                    
+                    document.getElementById('scanFailedAttempts').textContent = attemptsMsg;
+                    scanStatus.textContent = `Scan failed: ${data.message || 'Please try again.'}`;
+                    openModal('scanFailedModal');
+                }
             }
+            
         } catch (e) {
             console.error("Error parsing message:", e);
              fingerIcon.classList.remove('pulse');
@@ -236,9 +337,8 @@ function connectWebSocket() {
 
     socket.onerror = () => {
         isDeviceConnected = false;
-        deviceStatusContainer.classList.replace('border-emerald-200', 'border-red-200');
-        deviceStatusContainer.classList.replace('bg-emerald-50', 'bg-red-50');
-        deviceStatusContainer.classList.replace('text-emerald-700', 'text-red-600');
+        deviceStatusContainer.classList.remove('border-emerald-200', 'bg-emerald-50', 'text-emerald-700');
+        deviceStatusContainer.classList.add('border-red-200', 'bg-red-50', 'text-red-600');
         deviceStatusIcon.className = 'fa fa-times-circle'; // Error icon
         deviceStatusText.textContent = "Device Not Detected";
         scanBtn.disabled = true; // Disable scan button
@@ -247,12 +347,10 @@ function connectWebSocket() {
     };
 
      socket.onclose = () => {
-        // Handle unexpected close if needed, maybe retry connection?
-        if (isDeviceConnected) { // Only show if it was previously connected
+        if (isDeviceConnected) { 
              isDeviceConnected = false;
-             deviceStatusContainer.classList.replace('border-emerald-200', 'border-red-200');
-             deviceStatusContainer.classList.replace('bg-emerald-50', 'bg-red-50');
-             deviceStatusContainer.classList.replace('text-emerald-700', 'text-red-600');
+             deviceStatusContainer.classList.remove('border-emerald-200', 'bg-emerald-50', 'text-emerald-700');
+             deviceStatusContainer.classList.add('border-red-200', 'bg-red-50', 'text-red-600');
              deviceStatusIcon.className = 'fa fa-times-circle';
              deviceStatusText.textContent = "Connection Lost";
              scanBtn.disabled = true;
@@ -261,25 +359,47 @@ function connectWebSocket() {
     };
 }
 
-// --- Start Scan Process (Called after notice confirmed) ---
-function startZKScan() {
+
+// --- NEW: Function to start the whole 3-step process ---
+function startScanProcess() {
     if (!socket || socket.readyState !== WebSocket.OPEN) {
         scanStatus.textContent = "Device not ready. Please wait or refresh.";
         return;
     }
+    
+    // Reset state variables
+    scanStep = 1;
+    retryAttempts = 0;
+    
+    // Reset visual steps
+    for(let i = 1; i <= totalSteps; i++) {
+        const stepEl = document.getElementById(`scanStep${i}`);
+        if(stepEl) {
+            stepEl.classList.remove('bg-emerald-500', 'border-emerald-500', 'text-white');
+            stepEl.classList.add('text-gray-500');
+        }
+    }
+    
+    // Start with step 1
+    promptForScan();
+}
+
+// --- NEW: Function to prompt for the CURRENT step ---
+function promptForScan() {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+        scanStatus.textContent = "Device not ready. Please wait or refresh.";
+        return;
+    }
+    
+    if (scanStep > totalSteps) return; // Process already finished
 
     fingerIcon.classList.add('pulse');
-    scanStatus.textContent = "Scanning... Place your finger on the device.";
+    scanStatus.textContent = `Scanning... Place finger for scan ${scanStep} of ${totalSteps}...`;
 
-    // Reset steps visually if starting a new scan sequence
-    if (scanStep > totalSteps) scanStep = 1;
-    for(let i = 1; i <= totalSteps; i++) {
-        document.getElementById(`scanStep${i}`).classList.remove('bg-emerald-500', 'border-emerald-500');
-    }
-
-    // Tell the device to start enrolling
-    socket.send(JSON.stringify({ command: "enroll_start" }));
+    // Tell the C# bridge to start enrolling for the current step
+    socket.send(JSON.stringify({ command: "enroll_step", step: scanStep }));
 }
+
 
 // --- Event Listeners ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -296,16 +416,31 @@ document.addEventListener('DOMContentLoaded', () => {
     // Handle proceeding after notice
     document.getElementById('proceedScanBtn').addEventListener('click', () => {
         closeModal('scanNoticeModal');
-        startZKScan(); // Now start the actual scan
+        startScanProcess(); // *** MODIFIED: Calls new start function ***
+    });
+    
+    // Handle "Try Again" from scan failure
+    document.getElementById('retryScanBtn').addEventListener('click', () => {
+        closeModal('scanFailedModal');
+        promptForScan(); // *** MODIFIED: Calls prompt for same step ***
     });
 
-    // Close modals if clicking outside (Ensure this is handled globally in main.js or add here)
-    // Example:
-    // window.addEventListener('click', function(event) {
-    //     if (event.target.classList.contains('modal')) {
-    //          closeModal(event.target.id);
-    //     }
-    // });
+    // Handle "OK" from max failures
+    document.getElementById('maxFailuresOkBtn').addEventListener('click', () => {
+        // Redirect back to the list
+        window.location.href='complete_registration.php';
+    });
+
+    // Handle clicking "OK" on the *initial* error modal
+    document.getElementById('deviceErrorOkBtn').addEventListener('click', () => {
+            closeModal('deviceErrorModal');
+            openModal('retryConnectionModal'); // Open the new retry modal
+        });
+
+    // Handle clicking "Retry" on the *new* retry modal
+    document.getElementById('retryConnectBtn').addEventListener('click', () => {
+            retryConnection(); // Call the retry function
+        });
 });
 
 </script>

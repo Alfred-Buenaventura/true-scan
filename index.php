@@ -145,38 +145,74 @@ if (isAdmin()) {
         $activityLogs = $logResult->fetch_all(MYSQLI_ASSOC);
     }
 ?>
-    <div class="main-body user-dashboard-body"> <div class="ud-grid"> <div class="ud-card"> <h3 class="ud-card-title">Registration Status</h3> <div class="ud-card-content"> <div class="ud-card-row"> <span class="ud-card-label">Account Created</span> <span class="ud-badge completed">Completed</span> </div>
-                    <div class="ud-card-row"> <span class="ud-card-label">Fingerprint Registered</span> <?php if ($fingerprint_registered): ?>
-                            <span class="ud-badge completed">Completed</span> <?php else: ?>
-                            <span class="ud-badge pending">Pending</span> <?php endif; ?>
+    <div class="main-body user-dashboard-body">
+        
+        <div class="ud-grid">
+            
+            <div class="ud-card">
+                <h3 class="ud-card-title">Registration Status</h3>
+                <div class="ud-card-content">
+                    <div class="ud-card-row">
+                        <span class="ud-card-label">Account Created</span>
+                        <span class="ud-badge completed">Completed</span>
+                    </div>
+                    <div class="ud-card-row">
+                        <span class="ud-card-label">Fingerprint Registered</span>
+                        <?php if ($fingerprint_registered): ?>
+                            <span class="ud-badge completed">Completed</span>
+                        <?php else: ?>
+                            <span class="ud-badge pending">Pending</span>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
 
-            <div class="ud-card"> <h3 class="ud-card-title">Today's Attendance</h3> <div class="ud-card-content"> <div class="ud-card-row"> <span class="ud-card-label">Status</span> <?php
-                            // Check if $attendance is not null before accessing keys
+            <div class="ud-card">
+                <h3 class="ud-card-title">Today's Attendance</h3>
+                <div class="ud-card-content">
+                    <div class="ud-card-row">
+                        <span class="ud-card-label">Status</span>
+                        <?php
                             $status = $attendance['status'] ?? 'Not Present';
                             $statusClass = 'not-present';
                             if ($status === 'Present') $statusClass = 'completed';
                             if ($status === 'Late') $statusClass = 'pending';
                         ?>
-                        <span class="ud-badge <?= $statusClass ?>"><?= htmlspecialchars($status) ?></span> </div>
-                    <div class="ud-card-row"> <span class="ud-card-label">Time In</span> <span class="ud-card-value"> <?= isset($attendance['time_in']) ? date('g:i A', strtotime($attendance['time_in'])) : '------' ?>
+                        <span class="ud-badge <?= $statusClass ?>"><?= htmlspecialchars($status) ?></span>
+                    </div>
+                    <div class="ud-card-row">
+                        <span class="ud-card-label">Time In</span>
+                        <span class="ud-card-value">
+                            <?= isset($attendance['time_in']) ? date('g:i A', strtotime($attendance['time_in'])) : '------' ?>
                         </span>
                     </div>
-                    <div class="ud-card-row"> <span class="ud-card-label">Time Out</span> <span class="ud-card-value"> <?= isset($attendance['time_out']) ? date('g:i A', strtotime($attendance['time_out'])) : '------' ?>
+                    <div class="ud-card-row">
+                        <span class="ud-card-label">Time Out</span>
+                        <span class="ud-card-value">
+                            <?= isset($attendance['time_out']) ? date('g:i A', strtotime($attendance['time_out'])) : '------' ?>
                         </span>
                     </div>
                 </div>
             </div>
 
-        </div> <div class="ud-card ud-activity-card"> <h3 class="ud-card-title">My Recent Activity</h3> <div class="ud-card-content"> <?php if (empty($activityLogs)): ?>
-                    <div class="ud-activity-empty"> <i class="fa-solid fa-chart-line"></i>
-                        <span>No activity recorded.</span> </div>
+        </div> <div class="ud-card ud-activity-card">
+            <h3 class="ud-card-title">My Recent Activity</h3>
+            <div class="ud-card-content">
+                <?php if (empty($activityLogs)): ?>
+                    <div class="ud-activity-empty">
+                        <i class="fa-solid fa-chart-line"></i>
+                        <span>No activity recorded.</span>
+                    </div>
                 <?php else: ?>
-                    <div class="ud-activity-list"> <?php foreach ($activityLogs as $log): ?>
-                            <div class="ud-activity-item"> <div class="ud-activity-details"> <strong class="ud-activity-action"><?= htmlspecialchars($log['action']) ?></strong> <span class="ud-activity-description"><?= htmlspecialchars($log['description']) ?></span> </div>
-                                <span class="ud-activity-time"> <?= date('M d, Y g:i A', strtotime($log['created_at'])) ?>
+                    <div class="ud-activity-list">
+                        <?php foreach ($activityLogs as $log): ?>
+                            <div class="ud-activity-item">
+                                <div class="ud-activity-details">
+                                    <strong class="ud-activity-action"><?= htmlspecialchars($log['action']) ?></strong>
+                                    <span class="ud-activity-description"><?= htmlspecialchars($log['description']) ?></span>
+                                </div>
+                                <span class="ud-activity-time">
+                                    <?= date('M d, Y g:i A', strtotime($log['created_at'])) ?>
                                 </span>
                             </div>
                         <?php endforeach; ?>

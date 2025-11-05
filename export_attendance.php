@@ -1,7 +1,8 @@
 <?php
 // export_attendance.php - Export attendance to CSV
 require_once 'config.php';
-requireAdmin();
+// *** MODIFIED: Allow all logged-in users ***
+requireLogin();
 
 $db = db();
 
@@ -9,6 +10,11 @@ $db = db();
 $startDate = $_GET['start_date'] ?? date('Y-m-01');
 $endDate = $_GET['end_date'] ?? date('Y-m-d');
 $userId = $_GET['user_id'] ?? '';
+
+// *** MODIFIED: Force user_id if not admin ***
+if (!isAdmin()) {
+    $userId = $_SESSION['user_id'];
+}
 
 // Build query
 $query = "

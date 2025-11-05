@@ -296,7 +296,19 @@ include 'includes/header.php';
                             <option value="Full Time Teacher">Full Time Teacher</option>
                             <option value="Part Time Teacher">Part Time Teacher</option>
                             <option value="Registrar">Registrar</option>
-                            </select>
+                            <option value="Admission">Admission</option>
+                            <option value="OPRE">OPRE</option>
+                            <option value="Scholarship Office">Scholarship Office</option>
+                            <option value="Doctor">Doctor</option>
+                            <option value="Nurse">Nurse</option>
+                            <option value="Guidance Office">Guidance Office</option>
+                            <option value="Library">Library</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Student Affair">Student Affair</option>
+                            <option value="Security Personnel and Facility Operator">Security Personnel and Facility Operator</option>
+                            <option value="OVPA">OVPA</option>
+                            <option value="MIS">MIS</option>
+                        </select>
                     </div>
                 </div>
 
