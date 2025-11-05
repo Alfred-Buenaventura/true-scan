@@ -792,6 +792,7 @@ tbody tr:hover {
 /* Alert Boxes end. */
 
 /* Tab Navigation start. */
+/* Tab Navigation start. */
 .tabs {
     display: flex;
     gap: 0.5rem;
@@ -807,13 +808,14 @@ tbody tr:hover {
     color: #6b7280;
     font-weight: 600;
     cursor: pointer;
-    border-radius: 0;
+    border-radius: 8px 8px 0 0; /* <-- Rounds the top corners of the tab */
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     gap: 0.5rem;
     border-bottom: 3px solid transparent;
     margin-bottom: -2px;
+    position: relative; /* <-- This is required */
 }
 
 .tab-btn:hover {
@@ -822,9 +824,21 @@ tbody tr:hover {
 }
 
 .tab-btn.active {
-    color: var(--emerald-700);
-    background: var(--emerald-50);
-    border-bottom: 3px solid var(--emerald-600);
+    color: var(--emerald-800);
+    background: var(--emerald-100);
+    border-bottom: 3px solid transparent; /* <-- Hides the sharp border */
+}
+
+/* This adds the curved underline */
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px; /* Aligns with the -2px margin */
+    left: 10%;
+    width: 80%;
+    height: 3px;
+    background: var(--emerald-600);
+    border-radius: 8px; /* This curves the line */
 }
 
 .tab-content {
@@ -835,6 +849,7 @@ tbody tr:hover {
     display: block;
 }
 /* Tab Navigation end. */
+
 
 /* Form Grid Layout start. */
 .form-grid {
@@ -1442,6 +1457,7 @@ tbody tr:hover {
     border-bottom: 3px solid transparent;
     cursor: pointer;
     transition: all 0.25s ease;
+    position: relative; 
 }
 
 .tab-btn:hover {
@@ -1450,10 +1466,24 @@ tbody tr:hover {
 }
 
 .tab-btn.active {
-    background: var(--emerald-50);
-    color: var(--emerald-700);
-    border-bottom: 3px solid var(--emerald-600);
+    background: var(--emerald-100); 
+    color: var(--emerald-800);
+    border-bottom: 3px solid transparent; 
 }
+
+/* --- ADD THIS NEW RULE (it's identical to the one above) --- */
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 10%;
+    width: 80%;
+    height: 3px;
+    background: var(--emerald-600);
+    border-radius: 3px; 
+}
+
+/* ... [other CSS] ... */
 
 #viewTab table.data-table th,
 #viewTab table.data-table td {
@@ -3458,4 +3488,271 @@ body.dtr-body {
     font-size: 2.5rem;
     margin-bottom: 1rem;
     color: var(--gray-400);
+}
+
+/* [ALL YOUR EXISTING CSS FROM style.css GOES HERE] */
+/* ... (file content from line 1 to 1421) ... */
+.ud-activity-empty i {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: var(--gray-400);
+}
+
+/* ================================================= */
+/* === ADDITIONS FOR SCHEDULE_MANAGEMENT.PHP === */
+/* ================================================= */
+
+/* --- STYLES FOR DYNAMIC SCHEDULE FORM --- */
+#schedule-entry-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-height: 50vh; /* Make list scrollable */
+    overflow-y: auto;
+    padding: 0.5rem;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+}
+
+.schedule-entry-row {
+    display: flex;
+    align-items: flex-end; /* Align to bottom for button */
+    gap: 0.75rem;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--gray-300);
+}
+
+.schedule-entry-row .form-group {
+    margin: 0;
+    flex: 1; /* Make form groups flexible */
+}
+
+/* Specific widths for inputs */
+.form-group-day { min-width: 140px; }
+.form-group-subject { flex: 2; } /* Subject takes most space */
+.form-group-time { min-width: 120px; }
+.form-group-room { min-width: 130px; }
+
+.schedule-entry-row .btn-danger {
+    padding: 0.75rem; /* Make button squarer */
+    height: calc(1.5em + 1.5rem + 2px); /* Match form-control height */
+    flex-shrink: 0;
+}
+
+/* Style for disabled add button */
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--gray-400);
+}
+
+/* --- Styles for Manage Toggle --- */
+.card-header-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* By default, hide the actions column */
+.table-actions {
+    display: none;
+}
+
+/* When the table has the 'managing' class, show the column */
+.managing .table-actions {
+    display: table-cell;
+}
+
+/* --- Styles for refactored inline attributes --- */
+.modal-content.modal-lg {
+    max-width: 1000px;
+}
+
+.modal-header.modal-header-danger {
+    background: var(--red-50);
+}
+.modal-header.modal-header-danger h3 {
+    color: var(--red-700);
+}
+
+.modal-confirm-detail {
+    background: var(--gray-50); 
+    padding: 1rem; 
+    border-radius: 8px; 
+    margin-top: 1rem; 
+    border: 1px solid var(--gray-200);
+}
+.modal-confirm-detail strong {
+    display: block; 
+    font-size: 1.1rem; 
+    color: var(--gray-800);
+}
+.modal-confirm-detail span {
+    color: var(--gray-600);
+}
+
+.text-danger {
+    color: var(--red-600);
+}
+.mt-1 { margin-top: 1rem; }
+.fs-large { font-size: 1rem; }
+.fs-small { font-size: 0.9rem; }
+
+.card-header-flex {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+}
+
+.schedule-filter-form {
+    margin-bottom: 2rem; 
+    border-bottom: 1px solid var(--gray-200); 
+    padding-bottom: 2rem;
+}
+.schedule-filter-grid {
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+    gap: 1rem; 
+    align-items: end;
+}
+.schedule-filter-grid .form-group {
+    margin: 0;
+}
+
+.empty-schedule-message {
+    text-align: center; 
+    color: var(--gray-500); 
+    padding: 40px;
+}
+
+.table-user-name {
+    font-weight: 600;
+}
+.table-user-id {
+    font-size: 0.85rem; 
+    color: var(--gray-600);
+}
+.table-day-highlight {
+    font-weight: 600;
+}
+
+/* [ALL YOUR EXISTING CSS... (lines 1-1500+)] */
+
+#toast-container {
+    position: fixed;
+    top: 80px; /* Below the header */
+    right: 20px;
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 350px;
+}
+
+.toast-message {
+    display: flex;
+    align-items: flex-start;
+    padding: 1rem;
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    opacity: 1;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    transform: translateX(0);
+}
+
+.toast-icon {
+    flex-shrink: 0;
+    font-size: 1.25rem;
+    margin-right: 1rem;
+}
+
+.toast-content {
+    flex-grow: 1;
+    color: var(--gray-700);
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+.toast-content p {
+    margin: 0;
+}
+
+.toast-close {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    color: var(--gray-400);
+    padding: 0 0 0 1rem;
+    opacity: 0.7;
+    transition: all 0.2s ease;
+}
+.toast-close:hover {
+    color: var(--gray-700);
+    opacity: 1;
+}
+
+/* Notification Types */
+.toast-info .toast-icon {
+    color: var(--blue-500);
+}
+.toast-warning .toast-icon {
+    color: var(--yellow-500);
+}
+.toast-success .toast-icon {
+    color: var(--emerald-500);
+}
+.toast-danger .toast-icon {
+    color: var(--red-500);
+}
+
+/* ============================================= */
+/* === COMPLETE REGISTRATION EMPTY STATE === */
+/* ============================================= */
+
+.empty-state-card-content {
+    text-align: center; 
+    padding: 3rem; 
+    color: var(--gray-500);
+}
+
+.empty-state-card-content i {
+    font-size: 2.5rem; 
+    margin-bottom: 1rem;
+    color: var(--emerald-500); /* Use emerald instead of gray */
+}
+
+.empty-state-card-content .empty-state-title {
+    font-size: 1.1rem; 
+    font-weight: 500;
+    color: var(--gray-700);
+}
+
+.empty-state-card-content .empty-state-subtitle {
+    font-size: 1rem;
+    color: var(--gray-600);
+}
+
+.card-header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start; /* Use flex-start for title alignment */
+}
+
+/* This targets the button alignment specifically */
+.card-header-flex[style*="align-items: center;"] {
+     align-items: center;
+}
+
+.fs-large {
+    font-size: 1rem;
+    color: var(--gray-700);
+}
+
+.fs-small {
+    font-size: 0.9rem;
 }
