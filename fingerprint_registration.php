@@ -225,6 +225,17 @@ include 'includes/header.php';
 
 
 <script>
+// --- Modal Helper Functions (Added for reliability) ---
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'flex';
+}
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'none';
+}
+// --- End Added Functions ---
+
 // *** MODIFIED: Updated JS logic ***
 let scanStep = 1;
 const totalSteps = 3; // Changed to 3

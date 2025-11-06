@@ -1,6 +1,6 @@
 <?php
 require_once 'config.php';
-requireLogin(); // Security check
+requireLogin();
 
 $db = db();
 $error = '';
@@ -9,35 +9,25 @@ $users = [];
 $selectedUserId = null;
 $selectedUser = null;
 
-// --- Role-Specific Logic: Determine which user we are managing ---
 if (isAdmin()) {
     $users = $db->query("SELECT id, faculty_id, first_name, last_name FROM users WHERE status='active' ORDER BY first_name")->fetch_all(MYSQLI_ASSOC);
-    // Admins can select a user. '' means 'All Users'
     $selectedUserId = $_GET['user_id'] ?? ''; 
 } else {
-    // Regular users are locked to their own ID
     $selectedUserId = $_SESSION['user_id'];
 }
-// --- End Role-Specific Logic ---
 
-
-// ===== Handle POST Actions (Add/Edit/Delete) =====
-
-// Handle Add Multiple Schedules
+/*handles the adding of schedules in the user account*/
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_schedule'])) {
     
-    // NEW: Admins cannot add schedules.
     if (isAdmin()) {
         $error = 'Access Denied. Administrators can manage schedules but not create them.';
     
     } else {
-        // User is NOT an admin. They must be adding for themselves.
         $userIdToAdd = (int)$_POST['user_id_add'];
         
         if ($userIdToAdd !== $_SESSION['user_id']) {
             $error = 'Access Denied. You can only add schedules for your own account.';
         } else {
-            // User is adding for themselves. Proceed.
             $days = $_POST['day_of_week'] ?? [];
             $subjects = $_POST['subject'] ?? [];
             $startTimes = $_POST['start_time'] ?? [];
@@ -77,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_schedule'])) {
     }
 }
 
-// Handle Edit Schedule
+/*editing schedules function*/
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_schedule'])) {
     $scheduleId = (int)$_POST['schedule_id'];
     $userIdToEdit = (int)$_POST['user_id_edit']; 
@@ -101,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_schedule'])) {
     }
 }
 
-// Handle Delete Schedule
+/*function for deleting schedules*/
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_schedule'])) {
     $scheduleId = (int)$_POST['schedule_id_delete'];
     $userIdToDelete = (int)$_POST['user_id_delete'];
@@ -119,15 +109,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_schedule'])) {
         }
     }
 }
-// ===== End POST Actions =====
 
-
-// --- Get Filter Parameters (from URL) ---
 $filterDayOfWeek = $_GET['day_of_week'] ?? '';
-$filterStartDate = $_GET['start_date'] ?? ''; // Not used in query, but kept for UI
-$filterEndDate = $_GET['end_date'] ?? '';     // Not used in query, but kept for UI
+$filterStartDate = $_GET['start_date'] ?? ''; 
+$filterEndDate = $_GET['end_date'] ?? '';     
 
-// --- Build Query ---
 $schedules = [];
 $params = [];
 $types = "";
@@ -138,7 +124,7 @@ if (isAdmin()) {
               JOIN users u ON cs.user_id = u.id";
     $conditions = [];
 
-    if ($selectedUserId) { // Admin is filtering by a specific user
+    if ($selectedUserId) {
         $conditions[] = "cs.user_id = ?";
         $params[] = $selectedUserId;
         $types .= "i";
@@ -155,7 +141,6 @@ if (isAdmin()) {
     $query .= " ORDER BY u.last_name, u.first_name, FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'), start_time";
 
 } else {
-    // Regular user query (locked to their ID)
     $query = "SELECT *, null as first_name, null as last_name, null as faculty_id 
               FROM class_schedules 
               WHERE user_id = ?";
@@ -170,7 +155,6 @@ if (isAdmin()) {
     $query .= " ORDER BY FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'), start_time";
 }
 
-// Execute query
 $stmt = $db->prepare($query);
 if ($stmt) {
     if (!empty($params)) {
@@ -179,20 +163,14 @@ if ($stmt) {
     $stmt->execute();
     $schedules = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 } else {
-    // This is where the first part of your error is coming from
     $error = "Database query error: " . $db->error;
 }
-    
-// --- Get Stats ---
-// =================================================================
-// === START: REVISED STATS BLOCK (More detailed errors) ========
-// =================================================================
+
 $weeklyHours = 0;
 $totalSchedules = 0;
 $totalUsersWithSchedules = 0;
 
 if ($selectedUserId) {
-    // Get details for the *specific* user (for both admin filter and regular user)
     $stmtUser = $db->prepare("SELECT * FROM users WHERE id=?");
     if ($stmtUser) {
         $stmtUser->bind_param("i", $selectedUserId);
@@ -211,37 +189,35 @@ if ($selectedUserId) {
         $error .= " Failed to prepare user query. DB Error: " . $db->error;
     }
 
-    // Calculate total weekly hours for this user
+    /*calculates the total hours of the user*/
     $stmtHours = $db->prepare("SELECT SUM(TIME_TO_SEC(TIMEDIFF(end_time, start_time))/3600) as total FROM class_schedules WHERE user_id=?");
-    if ($stmtHours) { // Check if prepare() succeeded
+    if ($stmtHours) {
         $stmtHours->bind_param("i", $selectedUserId);
-        if ($stmtHours->execute()) { // Check if execute() succeeded
+        if ($stmtHours->execute()) { 
             $result = $stmtHours->get_result();
-            if ($result) { // Check if get_result() succeeded
+            if ($result) {
                 $row = $result->fetch_assoc();
                 $weeklyHours = round($row['total'] ?? 0, 1);
             } else {
                 $error .= " Failed to get schedule hour results. DB Error: " . $db->error;
-                $weeklyHours = 0; // Default value
+                $weeklyHours = 0;
             }
         } else {
             $error .= " Failed to execute schedule hour query. DB Error: " . $stmtHours->error;
-            $weeklyHours = 0; // Default value
+            $weeklyHours = 0;
         }
-        $stmtHours->close(); // Good practice to close
+        $stmtHours->close(); 
     } else {
-        // This is where the second part of your error comes from
         $error .= " Failed to prepare schedule hour query. DB Error: " . $db->error; 
-        $weeklyHours = 0; // Default value
+        $weeklyHours = 0;
     }
 
 } elseif (isAdmin()) {
-    // Admin is in "All Users" view. Get system-wide stats.
     $schedulesResult = $db->query("SELECT COUNT(*) as c FROM class_schedules");
     if ($schedulesResult) {
         $totalSchedules = $schedulesResult->fetch_assoc()['c'];
     } else {
-        $totalSchedules = 0; // Default
+        $totalSchedules = 0;
         $error .= " Failed to get total schedules count. DB Error: " . $db->error;
     }
     
@@ -249,15 +225,10 @@ if ($selectedUserId) {
     if ($usersResult) {
         $totalUsersWithSchedules = $usersResult->fetch_assoc()['c'];
     } else {
-        $totalUsersWithSchedules = 0; // Default
+        $totalUsersWithSchedules = 0;
         $error .= " Failed to get total users with schedules count. DB Error: " . $db->error;
     }
 }
-// =================================================================
-// === END: REVISED STATS BLOCK ====================================
-// =================================================================
-// --- End Stats ---
-
 
 $pageTitle = 'Schedule Management';
 $pageSubtitle = isAdmin() ? 'Manage class schedules and working hours' : 'Manage your class schedule';
@@ -274,7 +245,7 @@ include 'includes/header.php';
     <?php endif; ?>
 
     <div class="stats-grid schedule-stats-grid">
-        <?php if ($selectedUser): // Specific User view (Admin filter or Regular User) ?>
+        <?php if ($selectedUser):?>
             <div class="stat-card stat-card-small">
                 <div class="stat-icon emerald">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -314,7 +285,7 @@ include 'includes/header.php';
                 </div>
             </div>
 
-        <?php elseif (isAdmin()): // Admin "All Users" view ?>
+        <?php elseif (isAdmin()):?>
             <div class="stat-card stat-card-small">
                 <div class="stat-icon emerald">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -365,7 +336,7 @@ include 'includes/header.php';
                     <i class="fa-solid fa-pen-to-square"></i> Manage Schedules
                 </button>
                 
-                <?php if (!isAdmin()): // ONLY show "Add" button to non-admins ?>
+                <?php if (!isAdmin()):?>
                 <button class="btn btn-primary" onclick="openAddModal()">
                     <i class="fa-solid fa-plus"></i> Add New Schedule(s)
                 </button>
@@ -376,7 +347,7 @@ include 'includes/header.php';
             <form method="GET" class="schedule-filter-form">
                  <div class="schedule-filter-grid">
                     
-                    <?php if (isAdmin()): // Show User Filter only to Admins ?>
+                    <?php if (isAdmin()):?>
                     <div class="form-group">
                         <label>Select User</label>
                         <select name="user_id" class="form-control" onchange="this.form.submit()">
@@ -421,7 +392,7 @@ include 'includes/header.php';
             <?php else: ?>
                 <table id="schedule-table"> <thead>
                         <tr>
-                            <?php if (isAdmin() && !$selectedUserId): // Show User column in 'All Users' view ?>
+                            <?php if (isAdmin() && !$selectedUserId):?>
                                 <th>User</th>
                             <?php endif; ?>
                             <th>Day</th>
@@ -440,7 +411,7 @@ include 'includes/header.php';
                             $hours = $duration->h + ($duration->i / 60);
                         ?>
                         <tr>
-                            <?php if (isAdmin() && !$selectedUserId): // Show User data in 'All Users' view ?>
+                            <?php if (isAdmin() && !$selectedUserId):?>
                                 <td>
                                     <div class="table-user-name"><?= htmlspecialchars($schedule['first_name'] . ' ' . $schedule['last_name']) ?></div>
                                     <div class="table-user-id"><?= htmlspecialchars($schedule['faculty_id']) ?></div>
@@ -589,7 +560,6 @@ include 'includes/header.php';
 </div>
 
 <script>
-// --- NEW JAVASCRIPT for Multi-Add Modal ---
 const scheduleList = document.getElementById('schedule-entry-list');
 const addScheduleUserIdField = document.getElementById('addScheduleUserId');
 
@@ -651,8 +621,6 @@ function openAddModal() {
     openModal('addScheduleModal');
 }
 
-
-// --- Functions for Edit and Delete Modals (from previous step) ---
 function openEditModal(id, userId, day, subject, startTime, endTime, room) {
     document.getElementById('editScheduleId').value = id;
     document.getElementById('editUserId').value = userId;
@@ -671,21 +639,19 @@ function openDeleteModal(id, userId, subject, day) {
     document.getElementById('deleteScheduleDay').textContent = day;
     openModal('deleteScheduleModal');
 }
-
-// --- NEW: Toggle Manage Mode ---
+/*manage schedule button admin*/
 document.addEventListener('DOMContentLoaded', function() {
     const toggleBtn = document.getElementById('toggleManageBtn');
     const scheduleTable = document.getElementById('schedule-table');
 
     if (toggleBtn && scheduleTable) {
         toggleBtn.addEventListener('click', function() {
-            // Toggle the 'managing' class on the table
+
             const isManaging = scheduleTable.classList.toggle('managing');
-            
-            // Toggle button text and icon
+
             if (isManaging) {
                 toggleBtn.innerHTML = '<i class="fa-solid fa-check"></i> Done Managing';
-                toggleBtn.classList.add('btn-success'); // Make it green
+                toggleBtn.classList.add('btn-success');
                 toggleBtn.classList.remove('btn-secondary');
             } else {
                 toggleBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Manage Schedules';

@@ -5,16 +5,15 @@ requireLogin();
 $db = db();
 $error = '';
 $success = '';
-$userId = $_SESSION['user_id']; // Use session ID
+$userId = $_SESSION['id'];
 
-// --- Get current user data ---
-$user = getUserById($userId); // Assumes getUserById fetches necessary fields including profile_picture
+
+$user = getUserById($id);
 if (!$user) {
     header('Location: index.php');
     exit;
 }
 
-// --- Handle profile info update ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     $firstName = clean($_POST['first_name']);
     $lastName = clean($_POST['last_name']);
@@ -29,16 +28,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
         $_SESSION['full_name'] = $firstName . ' ' . $lastName;
         $_SESSION['first_name'] = $firstName;
         $_SESSION['last_name'] = $lastName;
-        // NOTE: Email and phone are not typically stored in session, no need to update session for them.
         logActivity($userId, 'Profile Updated', 'User updated their profile information');
         $success = 'Profile information updated successfully!';
-        // Re-fetch user data to display updated info immediately
-        $user = getUserById($userId);
+        $user = getUserById($id);
     } else {
         $error = 'Failed to update profile information';
     }
 }
-// --- Profile Picture upload logic removed ---
 
 $pageTitle = 'My Profile';
 $pageSubtitle = 'View and edit your account information';
@@ -182,7 +178,6 @@ include 'includes/header.php';
                 </div>
                 <div class="card-body">
                     <?php
-                    // Fetch recent activities for this user
                     $stmtAct = $db->prepare("SELECT * FROM activity_logs WHERE user_id=? ORDER BY created_at DESC LIMIT 5");
                     $stmtAct->bind_param("i", $userId);
                     $stmtAct->execute();
@@ -209,7 +204,6 @@ include 'includes/header.php';
                     <?php endif; ?>
                 </div>
             </div> </div> </div> </div> <script>
-// --- Script for Edit Profile Toggle ---
 const editProfileBtn = document.getElementById('editProfileBtn');
 const editModeButtons = document.getElementById('editModeButtons');
 const cancelEditBtn = document.getElementById('cancelEditBtn');
@@ -220,15 +214,15 @@ const profileInputs = [
     document.getElementById('emailInput'),
     document.getElementById('phoneInput')
 ];
-let originalValues = {}; // Store original values
+let originalValues = {};
 
 if (editProfileBtn && editModeButtons && cancelEditBtn) {
     editProfileBtn.addEventListener('click', () => {
-        originalValues = {}; // Clear previous values
+        originalValues = {};
         profileInputs.forEach(input => {
             if (input) {
                 input.removeAttribute('readonly');
-                originalValues[input.id] = input.value; // Store current value
+                originalValues[input.id] = input.value;
             }
         });
         editProfileBtn.style.display = 'none';
@@ -239,19 +233,17 @@ if (editProfileBtn && editModeButtons && cancelEditBtn) {
         profileInputs.forEach(input => {
             if (input) {
                 input.setAttribute('readonly', true);
-                input.value = originalValues[input.id] || input.value; // Restore original value
+                input.value = originalValues[input.id] || input.value;
             }
         });
-        editProfileBtn.style.display = 'inline-flex'; // Use inline-flex for buttons
+        editProfileBtn.style.display = 'inline-flex';
         editModeButtons.style.display = 'none';
     });
 }
 
-// --- Auto-hide alerts ---
 document.addEventListener('DOMContentLoaded', function() {
     const alerts = document.querySelectorAll('.alert');
     alerts.forEach(alert => {
-        // Only target error/success alerts
         if (alert.classList.contains('alert-error') || alert.classList.contains('alert-success')) {
              setTimeout(() => {
                 alert.style.opacity = '0';

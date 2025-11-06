@@ -1,22 +1,22 @@
 <?php
 require_once 'config.php';
-requireAdmin(); // Only admins can see the full log
+requireAdmin(); 
 
 $db = db();
 
-// --- Fetch All Activity Logs ---
+
 $activityLogs = [];
-// Basic pagination setup
-$limit = 25; // Number of logs per page
-$page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1; // Get current page number, default to 1
+
+$limit = 25; 
+$page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1; 
 $offset = ($page - 1) * $limit;
 
-// Get total count for pagination
+
 $totalResult = $db->query("SELECT COUNT(*) as total FROM activity_logs");
 $totalLogs = $totalResult ? $totalResult->fetch_assoc()['total'] : 0;
 $totalPages = ceil($totalLogs / $limit);
 
-// Fetch logs for the current page
+
 $logQuery = "
     SELECT al.*, u.first_name, u.last_name 
     FROM activity_logs al
@@ -32,7 +32,7 @@ $logResult = $stmt->get_result();
 if ($logResult) {
     $activityLogs = $logResult->fetch_all(MYSQLI_ASSOC);
 }
-// --- End Fetch ---
+
 
 $pageTitle = 'Activity Log';
 $pageSubtitle = 'View all system and user activities';

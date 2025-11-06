@@ -1,22 +1,17 @@
 <?php
-// export_attendance.php - Export attendance to CSV
 require_once 'config.php';
-// *** MODIFIED: Allow all logged-in users ***
 requireLogin();
 
 $db = db();
 
-// Get filters
 $startDate = $_GET['start_date'] ?? date('Y-m-01');
 $endDate = $_GET['end_date'] ?? date('Y-m-d');
 $userId = $_GET['user_id'] ?? '';
 
-// *** MODIFIED: Force user_id if not admin ***
 if (!isAdmin()) {
     $userId = $_SESSION['user_id'];
 }
 
-// Build query
 $query = "
     SELECT ar.date, u.faculty_id, u.first_name, u.last_name, u.role,
            ar.time_in, ar.time_out, ar.working_hours, ar.status, ar.remarks
@@ -41,16 +36,13 @@ $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// Set headers for CSV download
 header('Content-Type: text/csv');
 header('Content-Disposition: attachment; filename="attendance_report_' . date('Y-m-d') . '.csv"');
 header('Pragma: no-cache');
 header('Expires: 0');
 
-// Open output stream
 $output = fopen('php://output', 'w');
 
-// Write CSV headers
 fputcsv($output, [
     'Date',
     'Faculty ID',
@@ -64,7 +56,6 @@ fputcsv($output, [
     'Remarks'
 ]);
 
-// Write data rows
 foreach ($records as $record) {
     fputcsv($output, [
         date('m/d/Y', strtotime($record['date'])),

@@ -8,7 +8,7 @@ include 'includes/header.php';
 ?>
 
 <div class="main-body">
-    <!-- System Info -->
+    
     <div class="card">
         <div class="card-body" style="text-align: center; padding: 40px;">
             <div style="width: 120px; height: 120px; background: var(--emerald-500); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
@@ -25,7 +25,7 @@ include 'includes/header.php';
     </div>
 
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
-        <!-- Features -->
+        
         <div class="card">
             <div class="card-header">
                 <h3>Key Features</h3>
@@ -85,7 +85,7 @@ include 'includes/header.php';
             </div>
         </div>
 
-        <!-- System Info -->
+        
         <div class="card">
             <div class="card-header">
                 <h3>System Information</h3>
@@ -113,7 +113,7 @@ include 'includes/header.php';
         </div>
     </div>
 
-    <!-- Credits -->
+    
     <div class="card">
         <div class="card-header">
             <h3>Development Team</h3>
@@ -130,7 +130,7 @@ include 'includes/header.php';
         </div>
     </div>
 
-    <!-- Support -->
+    
     <div class="card">
         <div class="card-header">
             <h3>Need Help?</h3>

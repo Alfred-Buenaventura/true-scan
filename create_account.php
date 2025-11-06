@@ -1,142 +1,211 @@
 <?php
-// SERVER-SIDE: do this first
 require_once 'config.php';
 requireAdmin();
 
 $db = db();
 $error = '';
 $success = '';
-$activeTab = 'csv'; // Default tab
+$activeTab = 'csv';
 
-// ===== CSV Import =====
+/*CSV Import*/
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csvFile'])) {
     $activeTab = 'csv';
-    if ($_FILES['csvFile']['error'] === 0) {
-        $file = fopen($_FILES['csvFile']['tmp_name'], 'r');
-        fgetcsv($file); // Skip header
-        $imported = 0; $skipped = 0;
-        while (($data = fgetcsv($file)) !== false) {
-            // We expect 8 columns: facultyId, lastName, firstName, middleName, username, role, email, phone
-            if (count($data) < 8) continue;
-            $facultyId = clean($data[0]);
-            $lastName = clean($data[1]);
-            $firstName = clean($data[2]);
-            $middleName = clean($data[3]);
-            $username = clean($data[4]);
-            $role = clean($data[5]);
-            $email = clean($data[6]);
-            $phone = $data[7] ?? '';
-
-            // Skip if role is Admin
-            if (strtolower($role) === 'admin') {
-                $skipped++;
-                continue;
+    if ($_FILES['csvFile']['error'] !== UPLOAD_ERR_OK) {
+        $error = 'Error uploading file. Code: ' . $_FILES['csvFile']['error'];
+    } else {
+        try {
+            $file = fopen($_FILES['csvFile']['tmp_name'], 'r');
+            if (!$file) {
+                throw new Exception("Could not open uploaded file.");
             }
 
+            fgetcsv($file);
+
+            $csvData = [];
+            $csvFacultyIds = [];
+            while (($data = fgetcsv($file)) !== false) {
+                if (count($data) < 8) continue;
+                $csvData[] = $data;
+                $csvFacultyIds[] = clean($data[0]);
+            }
+            fclose($file);
+
+            /*Fetch all existing faculty IDs in one query for efficient checking*/
+            $existingIdSet = [];
+            if (!empty($csvFacultyIds)) {
+                $placeholders = implode(',', array_fill(0, count($csvFacultyIds), '?'));
+                $types = str_repeat('s', count($csvFacultyIds));
+                $stmt = $db->prepare("SELECT faculty_id FROM users WHERE faculty_id IN ($placeholders)");
+                $stmt->bind_param($types, ...$csvFacultyIds);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                while ($row = $result->fetch_assoc()) {
+                    $existingIdSet[$row['faculty_id']] = true;
+                }
+            }
+
+            $imported = 0;
+            $skipped = 0;
+            $password = hashPass('DefaultPass123!');
+            
+            $stmtInsert = $db->prepare("INSERT INTO users (faculty_id, username, password, first_name, last_name, middle_name, email, phone, role, force_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
+
+            foreach ($csvData as $data) {
+                $facultyId = clean($data[0]);
+                $lastName = clean($data[1]);
+                $firstName = clean($data[2]);
+                $middleName = clean($data[3]);
+                $username = clean($data[4]);
+                $role = clean($data[5]);
+                $email = clean($data[6]);
+                $phone = $data[7] ?? '';
+
+                /* Skip if role is Admin or faculty_id already exists */
+                if (strtolower($role) === 'admin' || isset($existingIdSet[$facultyId])) {
+                    $skipped++;
+                    continue;
+                }
+
+                $stmtInsert->bind_param("sssssssss", $facultyId, $username, $password, $firstName, $lastName, $middleName, $email, $phone, $role);
+                $stmtInsert->execute();
+                $imported++;
+            }
+
+            logActivity($_SESSION['user_id'], 'CSV Import', "Imported $imported users. Skipped $skipped.");
+            $success = "Successfully imported $imported user(s). Skipped $skipped duplicate(s)/admin(s).";
+
+        } catch (Exception $e) {
+            $error = 'Import failed: ' . $e->getMessage();
+        }
+    }
+}
+
+/*Create Single User*/
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_user'])) {
+    $activeTab = 'create';
+    try {
+        $facultyId = clean($_POST['faculty_id']);
+        $firstName = clean($_POST['first_name']);
+        $lastName = clean($_POST['last_name']);
+        $middleName = clean($_POST['middle_name']);
+        $email = clean($_POST['email']);
+        $phone = clean($_POST['phone']);
+        $role = clean($_POST['role']);
+
+        if ($role === 'Admin') {
+            $error = 'Admin accounts must be created from the Admin Management page.';
+        } else {
             $stmt = $db->prepare("SELECT id FROM users WHERE faculty_id = ?");
             $stmt->bind_param("s", $facultyId);
             $stmt->execute();
-            if ($stmt->get_result()->num_rows > 0) { $skipped++; continue; }
-
-            $password = hashPass('DefaultPass123!');
-            $stmt = $db->prepare("INSERT INTO users (faculty_id, username, password, first_name, last_name, middle_name, email, phone, role, force_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
-            $stmt->bind_param("sssssssss", $facultyId, $username, $password, $firstName, $lastName, $middleName, $email, $phone, $role);
-            $stmt->execute();
-            $imported++;
+            
+            if ($stmt->get_result()->num_rows === 0) {
+                $username = strtolower($facultyId);
+                $password = hashPass('DefaultPass123!');
+                $stmt = $db->prepare("INSERT INTO users (faculty_id, username, password, first_name, last_name, middle_name, email, phone, role, force_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
+                $stmt->bind_param("sssssssss", $facultyId, $username, $password, $firstName, $lastName, $middleName, $email, $phone, $role);
+                $stmt->execute();
+                logActivity($_SESSION['user_id'], 'User Created', "Created user: $facultyId");
+                $success = "Account created successfully! User: $firstName $lastName";
+            } else {
+                $error = 'Faculty ID already exists';
+            }
         }
-        fclose($file);
-        logActivity($_SESSION['user_id'], 'CSV Import', "Imported $imported users");
-        $success = "Successfully imported $imported user(s). Skipped $skipped duplicate(s)/admin(s).";
+    } catch (Exception $e) {
+        $error = 'Error creating user: ' . $e->getMessage();
     }
 }
 
-// ===== Create Single User =====
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_user'])) {
-    $activeTab = 'create';
-    $facultyId = clean($_POST['faculty_id']);
-    $firstName = clean($_POST['first_name']);
-    $lastName = clean($_POST['last_name']);
-    $middleName = clean($_POST['middle_name']);
-    $email = clean($_POST['email']);
-    $phone = clean($_POST['phone']);
-    $role = clean($_POST['role']);
-
-    // Ensure role is not Admin
-    if ($role === 'Admin') {
-        $error = 'Admin accounts must be created from the Admin Management page.';
-    } else {
-        $stmt = $db->prepare("SELECT id FROM users WHERE faculty_id = ?");
-        $stmt->bind_param("s", $facultyId);
-        $stmt->execute();
-        if ($stmt->get_result()->num_rows === 0) {
-            $username = strtolower($facultyId);
-            $password = hashPass('DefaultPass123!');
-            $stmt = $db->prepare("INSERT INTO users (faculty_id, username, password, first_name, last_name, middle_name, email, phone, role, force_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
-            $stmt->bind_param("sssssssss", $facultyId, $username, $password, $firstName, $lastName, $middleName, $email, $phone, $role);
-            $stmt->execute();
-            logActivity($_SESSION['user_id'], 'User Created', "Created user: $facultyId");
-            $success = "Account created successfully! User: $firstName $lastName";
-        } else {
-            $error = 'Faculty ID already exists';
-        }
-    }
-}
-
-// ===== Edit User =====
+/*Edit User*/
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_user'])) {
     $activeTab = 'view';
-    $userId = (int)$_POST['user_id'];
-    $firstName = clean($_POST['first_name']);
-    $lastName = clean($_POST['last_name']);
-    $middleName = clean($_POST['middle_name']);
-    $email = clean($_POST['email']);
-    $phone = clean($_POST['phone']);
-    $stmt = $db->prepare("UPDATE users SET first_name=?, last_name=?, middle_name=?, email=?, phone=? WHERE id=?");
-    $stmt->bind_param("sssssi", $firstName, $lastName, $middleName, $email, $phone, $userId);
-    $stmt->execute();
-    logActivity($_SESSION['user_id'], 'User Updated', "Updated user ID: $userId");
-    $success = "User information updated successfully!";
+    try {
+        $userId = (int)$_POST['user_id'];
+        $firstName = clean($_POST['first_name']);
+        $lastName = clean($_POST['last_name']);
+        $middleName = clean($_POST['middle_name']);
+        $email = clean($_POST['email']);
+        $phone = clean($_POST['phone']);
+        $stmt = $db->prepare("UPDATE users SET first_name=?, last_name=?, middle_name=?, email=?, phone=? WHERE id=?");
+        $stmt->bind_param("sssssi", $firstName, $lastName, $middleName, $email, $phone, $userId);
+        $stmt->execute();
+        logActivity($_SESSION['user_id'], 'User Updated', "Updated user ID: $userId");
+        $success = "User information updated successfully!";
+    } catch (Exception $e) {
+        $error = 'Error updating user: ' . $e->getMessage();
+    }
 }
 
-// ===== Archive / Restore / Delete =====
+/*Archive User*/
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['archive_user'])) {
     $activeTab = 'view';
-    $userId = (int)$_POST['user_id'];
-    $stmt = $db->prepare("UPDATE users SET status='archived' WHERE id=?");
-    $stmt->bind_param("i", $userId);
-    $stmt->execute();
-    logActivity($_SESSION['user_id'], 'User Archived', "Archived user ID: $userId");
-    $success = 'User archived successfully!';
-}
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['restore_user'])) {
-    $activeTab = 'view';
-    $userId = (int)$_POST['user_id'];
-    $stmt = $db->prepare("UPDATE users SET status='active' WHERE id=?");
-    $stmt->bind_param("i", $userId);
-    $stmt->execute();
-    logActivity($_SESSION['user_id'], 'User Restored', "Restored user ID: $userId");
-    $success = 'User restored successfully!';
-}
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_user'])) {
-    $activeTab = 'view';
-    $userId = (int)$_POST['user_id'];
-    $stmt = $db->prepare("DELETE FROM users WHERE id=?");
-    $stmt->bind_param("i", $userId);
-    $stmt->execute();
-    logActivity($_SESSION['user_id'], 'User Deleted', "Permanently deleted user ID: $userId");
-    $success = 'User permanently deleted!';
+    try {
+        $userId = (int)$_POST['user_id'];
+        $stmt = $db->prepare("UPDATE users SET status='archived' WHERE id=?");
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        logActivity($_SESSION['user_id'], 'User Archived', "Archived user ID: $userId");
+        $success = 'User archived successfully!';
+    } catch (Exception $e) {
+        $error = 'Error archiving user: ' . $e->getMessage();
+    }
 }
 
-// ===== Stats & Data =====
-$totalUsers = $db->query("SELECT COUNT(*) as c FROM users WHERE status='active'")->fetch_assoc()['c'];
-$nonAdminUsers = $db->query("SELECT COUNT(*) as c FROM users WHERE status='active' AND role!='Admin'")->fetch_assoc()['c'];
-$adminUsers = $db->query("SELECT COUNT(*) as c FROM users WHERE status='active' AND role='Admin'")->fetch_assoc()['c'];
+/*Restore User*/
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['restore_user'])) {
+    $activeTab = 'view';
+    try {
+        $userId = (int)$_POST['user_id'];
+        $stmt = $db->prepare("UPDATE users SET status='active' WHERE id=?");
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        logActivity($_SESSION['user_id'], 'User Restored', "Restored user ID: $userId");
+        $success = 'User restored successfully!';
+    } catch (Exception $e) {
+        $error = 'Error restoring user: ' . $e->getMessage();
+    }
+}
+
+/*Delete User*/
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_user'])) {
+    $activeTab = 'view';
+    try {
+        $userId = (int)$_POST['user_id'];
+        $stmt = $db->prepare("DELETE FROM users WHERE id=?");
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        logActivity($_SESSION['user_id'], 'User Deleted', "Permanently deleted user ID: $userId");
+        $success = 'User permanently deleted!';
+    } catch (Exception $e) {
+        $error = 'Error deleting user: ' . $e->getMessage();
+    }
+}
+
+/* Single query for all active user stats */
+$statsQuery = $db->query("
+    SELECT
+        COUNT(*) as total_active,
+        SUM(CASE WHEN role != 'Admin' THEN 1 ELSE 0 END) as non_admin_active,
+        SUM(CASE WHEN role = 'Admin' THEN 1 ELSE 0 END) as admin_active
+    FROM users
+    WHERE status = 'active'
+");
+$stats = $statsQuery->fetch_assoc();
+
+$totalUsers = $stats['total_active'] ?? 0;
+$nonAdminUsers = $stats['non_admin_active'] ?? 0;
+$adminUsers = $stats['admin_active'] ?? 0;
+
 $activeUsers = $db->query("SELECT * FROM users WHERE status='active' ORDER BY created_at DESC")->fetch_all(MYSQLI_ASSOC);
 $archivedUsers = $db->query("SELECT * FROM users WHERE status='archived' ORDER BY created_at DESC")->fetch_all(MYSQLI_ASSOC);
 
 $pageTitle = 'Create New Account';
 $pageSubtitle = 'Create user accounts individually or import in bulk via CSV';
 include 'includes/header.php';
+
+function safe_js_data($data) {
+    return htmlspecialchars(json_encode($data), ENT_QUOTES, 'UTF-8');
+}
 ?>
 
 <main class="main-content" style="position: relative; z-index: 1; padding: 20px;">
@@ -358,10 +427,29 @@ include 'includes/header.php';
                                 <td><?= htmlspecialchars($user['phone']) ?></td>
                                 <td><span class="role-badge"><?= htmlspecialchars($user['role']) ?></span></td>
                                 <td>
-                                    <button class="btn btn-sm" onclick="editUser(<?= (int)$user['id'] ?>, '<?= addslashes($user['first_name']) ?>', '<?= addslashes($user['last_name']) ?>', '<?= addslashes($user['middle_name']) ?>', '<?= addslashes($user['email']) ?>', '<?= addslashes($user['phone']) ?>')">
+                                    <?php 
+                                    /* Securely pass data to the JavaScript function */
+                                    $editData = [
+                                        (int)$user['id'],
+                                        $user['first_name'],
+                                        $user['last_name'],
+                                        $user['middle_name'],
+                                        $user['email'],
+                                        $user['phone']
+                                    ];
+                                    $name = $user['first_name'] . ' ' . $user['last_name'];
+                                    ?>
+                                    <button class="btn btn-sm" onclick="editUser(<?php
+                                        echo safe_js_data($user['id']) . ', ' . 
+                                             safe_js_data($user['first_name']) . ', ' . 
+                                             safe_js_data($user['last_name']) . ', ' . 
+                                             safe_js_data($user['middle_name']) . ', ' . 
+                                             safe_js_data($user['email']) . ', ' . 
+                                             safe_js_data($user['phone']);
+                                    ?>)">
                                         <i class="fa-solid fa-pen"></i> Edit
                                     </button>
-                                    <button class="btn btn-sm btn-warning" onclick="confirmArchive(<?= (int)$user['id'] ?>, '<?= addslashes($user['first_name'].' '.$user['last_name']) ?>')">
+                                    <button class="btn btn-sm btn-warning" onclick="confirmArchive(<?= (int)$user['id'] ?>, <?= safe_js_data($name) ?>)">
                                         <i class="fa-solid fa-archive"></i> Archive
                                     </button>
                                 </td>
@@ -432,10 +520,11 @@ include 'includes/header.php';
                                     <td><?= htmlspecialchars($user['phone']) ?></td>
                                     <td><span class="role-badge"><?= htmlspecialchars($user['role']) ?></span></td>
                                     <td>
-                                        <button class="btn btn-sm btn-success" onclick="confirmRestore(<?= (int)$user['id'] ?>, '<?= addslashes($user['first_name'].' '.$user['last_name']) ?>')">
+                                        <?php $name = $user['first_name'] . ' ' . $user['last_name']; ?>
+                                        <button class="btn btn-sm btn-success" onclick="confirmRestore(<?= (int)$user['id'] ?>, <?= safe_js_data($name) ?>)">
                                             <i class="fa-solid fa-rotate-left"></i> Restore
                                         </button>
-                                        <button class="btn btn-sm btn-danger" onclick="confirmDelete(<?= (int)$user['id'] ?>, '<?= addslashes($user['first_name'].' '.$user['last_name']) ?>')">
+                                        <button class="btn btn-sm btn-danger" onclick="confirmDelete(<?= (int)$user['id'] ?>, <?= safe_js_data($name) ?>)">
                                             <i class="fa-solid fa-trash"></i> Delete
                                         </button>
                                     </td>
@@ -506,13 +595,11 @@ include 'includes/header.php';
 <script>
 /* Single place for JS. All DOM bindings happen after DOMContentLoaded. */
 
-// State used by confirm/double-confirm flows
 let pendingAction = null;
 let deleteUserId = null;
 let deleteUserName = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-    // ----- Tab switching helper (can be triggered from server-side by adding active classes) -----
     window.showTab = function(event, tab) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -521,7 +608,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (event && event.target) event.target.classList.add('active');
     };
 
-    // ----- Auto-dismiss notifications after 5 seconds -----
     const notifications = document.querySelectorAll('.notification');
     notifications.forEach(notification => {
         setTimeout(() => {
@@ -530,7 +616,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 5000);
     });
 
-    // ----- CSV file upload handling -----
     const csvFileInput = document.getElementById('csvFileInput');
     const csvDropzone = document.getElementById('csvDropzone');
     const csvFileStatus = document.getElementById('csvFileStatus');
@@ -546,7 +631,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Drag and drop functionality
         csvDropzone.addEventListener('dragover', function(e) {
             e.preventDefault();
             this.classList.add('dragover');
@@ -569,7 +653,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ----- Keep archived modal open after restore/delete POST if server requested it -----
     <?php if ($activeTab === 'view' && (isset($_POST['restore_user']) || isset($_POST['delete_user']))): ?>
     setTimeout(() => {
         openArchivedModal();
@@ -577,15 +660,15 @@ document.addEventListener('DOMContentLoaded', function() {
     <?php endif; ?>
 });
 
-// ----- Edit user functions -----
+/*Edit user functions*/
 function editUser(id, firstName, lastName, middleName, email, phone) {
-    const elId = document.getElementById('editUserId');
-    if (elId) elId.value = id;
-    const f = document.getElementById('editFirstName'); if (f) f.value = firstName || '';
-    const l = document.getElementById('editLastName'); if (l) l.value = lastName || '';
-    const m = document.getElementById('editMiddleName'); if (m) m.value = middleName || '';
-    const e = document.getElementById('editEmail'); if (e) e.value = email || '';
-    const p = document.getElementById('editPhone'); if (p) p.value = phone || '';
+    document.getElementById('editUserId').value = id;
+    document.getElementById('editFirstName').value = firstName || '';
+    document.getElementById('editLastName').value = lastName || '';
+    document.getElementById('editMiddleName').value = middleName || '';
+    document.getElementById('editEmail').value = email || '';
+    document.getElementById('editPhone').value = phone || '';
+    
     const form = document.getElementById('editForm');
     if (form) {
         form.style.display = 'block';
@@ -598,7 +681,6 @@ function hideEditForm() {
     if (form) form.style.display = 'none';
 }
 
-// ----- Modal functions -----
 function openArchivedModal() {
     const m = document.getElementById('archivedModal');
     if (m) m.style.display = 'flex';
@@ -611,7 +693,6 @@ function closeArchivedModal() {
     document.body.style.overflow = 'auto';
 }
 
-// ----- Download template confirmation -----
 function confirmDownload() {
     document.getElementById('confirmTitle').innerHTML = '<i class="fa-solid fa-download"></i> Download Template';
     document.getElementById('confirmMessage').textContent = 'Download the CSV template file? This template shows the correct format for bulk user import.';
@@ -627,7 +708,7 @@ function confirmDownload() {
     document.body.style.overflow = 'hidden';
 }
 
-// ----- Confirmation flows: archive / restore / delete -----
+/*Confirmation for archive, restore and delete actions*/
 function confirmArchive(userId, userName) {
     document.getElementById('confirmTitle').innerHTML = '<i class="fa-solid fa-archive"></i> Confirm Archive';
     document.getElementById('confirmMessage').textContent = `Are you sure you want to archive ${userName}? They will no longer have access to the system.`;
@@ -677,7 +758,6 @@ function confirmDelete(userId, userName) {
     deleteUserName = userName;
 
     pendingAction = function() {
-        // Show second confirmation
         closeConfirmModal();
         setTimeout(() => {
             const doubleMsg = document.getElementById('doubleConfirmMessage');
@@ -696,7 +776,7 @@ function closeConfirmModal() {
     const confirm = document.getElementById('confirmModal');
     if (confirm) confirm.style.display = 'none';
     document.body.style.overflow = 'auto';
-    // Keep archived modal open if it was open
+    
     const archived = document.getElementById('archivedModal');
     if (archived && archived.style.display === 'flex') {
         document.body.style.overflow = 'hidden';
@@ -732,7 +812,6 @@ function executeDeleteAction() {
     closeDoubleConfirmModal();
 }
 
-// ----- Close modals when clicking outside -----
 window.onclick = function(event) {
     const archivedModal = document.getElementById('archivedModal');
     const confirmModal = document.getElementById('confirmModal');

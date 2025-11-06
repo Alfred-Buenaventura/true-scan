@@ -7,13 +7,13 @@ $error = '';
 $success = '';
 $firstLogin = isset($_GET['first_login']);
 
-// Handle password change
+/*Handles the change password and tokens*/
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $currentPass = $_POST['current_password'];
     $newPass = $_POST['new_password'];
     $confirmPass = $_POST['confirm_password'];
     
-    // Get current user
+    /*Pulls the current user*/
     $stmt = $db->prepare("SELECT password FROM users WHERE id=?");
     $stmt->bind_param("i", $_SESSION['user_id']);
     $stmt->execute();

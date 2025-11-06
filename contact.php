@@ -6,17 +6,14 @@ $db = db();
 $error = '';
 $success = '';
 
-// Handle contact form submission
+/*Contact form submission code*/
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $subject = clean($_POST['subject']);
     $message = clean($_POST['message']);
     
     if ($subject && $message) {
-        // Log the support request
+        /*Saves and logs the support request*/
         logActivity($_SESSION['user_id'], 'Support Request', "Subject: $subject");
-        
-        // In production, send email to support team
-        // sendEmail('support@bpc.edu.ph', 'Support Request: ' . $subject, $message);
         
         $success = 'Your message has been sent successfully. Our support team will get back to you soon.';
     } else {
@@ -39,7 +36,6 @@ include 'includes/header.php';
     <?php endif; ?>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-        <!-- Contact Form -->
         <div class="card">
             <div class="card-header">
                 <h3>Send Us a Message</h3>
@@ -81,7 +77,6 @@ include 'includes/header.php';
             </div>
         </div>
 
-        <!-- Contact Information -->
         <div>
             <div class="card">
                 <div class="card-header">
@@ -187,7 +182,6 @@ include 'includes/header.php';
         </div>
     </div>
 
-    <!-- FAQ Section -->
     <div class="card">
         <div class="card-header">
             <h3>Frequently Asked Questions</h3>

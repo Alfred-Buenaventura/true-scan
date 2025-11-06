@@ -24,7 +24,6 @@ include 'includes/header.php';
 
 <div class="main-body registration-page"> 
     
-    <!-- Add error/success alerts here if needed -->
     <?php if (isset($error)): ?>
         <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
@@ -69,7 +68,6 @@ include 'includes/header.php';
 
     <div class="pending-registrations-section">
         
-        <!-- MODIFIED: Added flex layout and button -->
         <div class="card-header-flex" style="margin-bottom: 1.5rem; align-items: center;">
             <h3 class="section-title" style="margin: 0;">Pending Registrations (<?= $pendingCount ?>)</h3>
             <button class="btn btn-primary" onclick="openModal('notifyModal')" <?= empty($pendingUsers) ? 'disabled' : '' ?>>
@@ -112,7 +110,6 @@ include 'includes/header.php';
 </div>
 
 
-<!-- Notify All Modal (Copied from previous step) -->
 <div id="notifyModal" class="modal">
     <div class="modal-content modal-small">
         <div class="modal-header">
@@ -142,6 +139,17 @@ include 'includes/header.php';
 
 
 <script>
+// --- Modal Helper Functions (Added for reliability) ---
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'flex';
+}
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'none';
+}
+// --- End Added Functions ---
+
 // Simple live search functionality
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('userSearchInput');

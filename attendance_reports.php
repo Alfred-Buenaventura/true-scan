@@ -1,6 +1,5 @@
 <?php
 require_once 'config.php';
-// *** MODIFIED: Allow all logged-in users ***
 requireLogin(); 
 
 $db = db();
@@ -8,14 +7,13 @@ $error = '';
 $success = '';
 $currentUserId = $_SESSION['user_id'];
 
-// --- Get Filter Parameters ---
+
 $filterSearch = $_GET['search'] ?? ''; 
-$filterStartDate = $_GET['start_date'] ?? date('Y-m-d'); // Default to today
-$filterEndDate = $_GET['end_date'] ?? date('Y-m-d');   // Default to today
+$filterStartDate = $_GET['start_date'] ?? date('Y-m-d'); 
+$filterEndDate = $_GET['end_date'] ?? date('Y-m-d');   
 $filterDepartment = $_GET['department'] ?? 'all';
 $filterType = $_GET['type'] ?? 'all';
 
-// --- Page-specific variables based on role ---
 if (isAdmin()) {
     $pageTitle = 'Attendance Reports';
     $pageSubtitle = 'View and manage all user attendance records';
@@ -24,7 +22,6 @@ if (isAdmin()) {
     $pageSubtitle = 'View your personal attendance history';
 }
 
-// --- Calculate Today's Stats ---
 if (isAdmin()) {
     $today = date('Y-m-d');
     $entriesTodayResult = $db->query("SELECT COUNT(*) as c FROM attendance_records WHERE date = '$today' AND time_in IS NOT NULL");
@@ -36,7 +33,6 @@ if (isAdmin()) {
     $presentTodayResult = $db->query("SELECT COUNT(DISTINCT user_id) as c FROM attendance_records WHERE date = '$today' AND time_in IS NOT NULL");
     $presentToday = $presentTodayResult ? $presentTodayResult->fetch_assoc()['c'] : 0;
 } else {
-    // --- Stats for regular user ---
     $today = date('Y-m-d');
     $stmtToday = $db->prepare("SELECT time_in, time_out FROM attendance_records WHERE date = ? AND user_id = ?");
     $stmtToday->bind_param("si", $today, $currentUserId);
@@ -46,12 +42,11 @@ if (isAdmin()) {
     $entriesToday = $todayRecord && $todayRecord['time_in'] ? 1 : 0;
     $exitsToday = $todayRecord && $todayRecord['time_out'] ? 1 : 0;
 
-    // Change "Users Present" to "Total Days Present (All Time)" for the user
     $presentTodayResult = $db->query("SELECT COUNT(*) as c FROM attendance_records WHERE user_id = $currentUserId AND time_in IS NOT NULL");
     $presentToday = $presentTodayResult ? $presentTodayResult->fetch_assoc()['c'] : 0;
 }
 
-// --- Build Query for Table Data ---
+/*Query for Table Data*/
 $query = "
     SELECT ar.*, u.faculty_id, u.first_name, u.last_name, u.role
     FROM attendance_records ar
@@ -61,14 +56,12 @@ $query = "
 $params = [];
 $types = "";
 
-// --- MODIFIED: Apply role-based query constraints ---
 if (!isAdmin()) {
-    // Regular user can ONLY see their own records
+    /*For Users to see only their own attendance reports*/
     $query .= " AND ar.user_id = ?";
     $params[] = $currentUserId;
     $types .= "i";
 } elseif (!empty($filterSearch)) {
-    // Admin is searching
     $searchTerm = "%" . $filterSearch . "%";
     $query .= " AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.faculty_id LIKE ? OR u.email LIKE ?)";
     $params[] = $searchTerm;
@@ -77,9 +70,7 @@ if (!isAdmin()) {
     $params[] = $searchTerm;
     $types .= "ssss";
 }
-// --- End modification ---
 
-// Apply Date Range Filter (applies to both admin and user)
 if ($filterStartDate && $filterEndDate) {
     $query .= " AND ar.date BETWEEN ? AND ?";
     $params[] = $filterStartDate;
@@ -91,10 +82,8 @@ if ($filterStartDate && $filterEndDate) {
     $types .= "s";
 }
 
-// Add Ordering
 $query .= " ORDER BY ar.date DESC, ar.time_in ASC"; 
 
-// Prepare and Execute Query
 $stmt = $db->prepare($query);
 if ($stmt) {
     if (!empty($types)) {
@@ -107,7 +96,7 @@ if ($stmt) {
     $records = [];
 }
 
-$totalRecords = count($records); // Count based on filtered results
+$totalRecords = count($records);
 
 include 'includes/header.php';
 ?>
@@ -314,7 +303,7 @@ include 'includes/header.php';
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const printBtn = document.getElementById('printDtrBtn');
-    const searchInput = document.getElementById('searchFilter'); // This will be null for non-admins, which is fine.
+    const searchInput = document.getElementById('searchFilter');
 
     function checkDtrButtonState() {
         if (!printBtn) return; 
@@ -322,14 +311,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const startDate = document.getElementById('dateRangeStartFilter').value;
         const endDate = document.getElementById('dateRangeEndFilter').value;
         
-        // Admin URL
         let href = `print_dtr.php?start_date=${startDate}&end_date=${endDate}`;
         
         <?php if (isAdmin()): ?>
             const searchVal = searchInput ? searchInput.value : '';
             href += `&search=${encodeURIComponent(searchVal)}`;
         <?php else: ?>
-            // User URL
+            
             href += `&user_id=<?= $currentUserId ?>`;
         <?php endif; ?>
         

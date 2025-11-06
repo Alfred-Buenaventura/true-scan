@@ -1,33 +1,26 @@
 <?php
 require_once 'config.php';
-requireLogin(); // Use requireLogin() instead of config.php
+requireLogin();
 
-// --- Page Variables ---
 $pageTitle = 'Dashboard';
 $pageSubtitle = 'Welcome back, ' . htmlspecialchars($_SESSION['first_name'] ?? 'User') . '!';
-// --- End Page Variables ---
+require_once 'includes/header.php';
+$db = db();
 
-require_once 'includes/header.php'; // Include header first
-
-$db = db(); // Get database connection
-
-// --- Fetch Dashboard Data ---
 $activityLogs = [];
 
 if (isAdmin()) {
-    // --- Admin Data ---
     $pageSubtitle = 'Welcome back, System Administrator!';
 
     $totalUsersResult = $db->query("SELECT COUNT(*) as c FROM users WHERE status='active'");
     $totalUsers = $totalUsersResult ? $totalUsersResult->fetch_assoc()['c'] : 0;
 
-    // Placeholder for Active Today
     $activeToday = 0;
 
     $pendingRegResult = $db->query("SELECT COUNT(*) AS c FROM users WHERE status='active' AND fingerprint_registered=0");
     $pendingRegistrations = $pendingRegResult ? $pendingRegResult->fetch_assoc()['c'] : 0;
 
-    // Fetch the latest 5 activity logs (all users)
+    /*Query for getting and displaying the recent activities*/
     $logQuery = "
         SELECT al.*, u.first_name, u.last_name
         FROM activity_logs al
@@ -112,23 +105,19 @@ if (isAdmin()) {
 
 <?php
 } else {
-    // --- Regular User Data ---
 
-    // 1. Get User Registration Status
     $stmtUser = $db->prepare("SELECT fingerprint_registered FROM users WHERE id = ?");
     $stmtUser->bind_param("i", $_SESSION['user_id']);
     $stmtUser->execute();
     $user = $stmtUser->get_result()->fetch_assoc();
     $fingerprint_registered = $user['fingerprint_registered'] ?? 0;
 
-    // 2. Get Today's Attendance
     $today = date('Y-m-d');
     $stmtAtt = $db->prepare("SELECT * FROM attendance_records WHERE user_id = ? AND date = ?");
     $stmtAtt->bind_param("is", $_SESSION['user_id'], $today);
     $stmtAtt->execute();
-    $attendance = $stmtAtt->get_result()->fetch_assoc(); // Use fetch_assoc() as there's only one record per day
+    $attendance = $stmtAtt->get_result()->fetch_assoc();
 
-    // 3. Get Recent Activity
     $logQuery = "
         SELECT al.*
         FROM activity_logs al
@@ -223,7 +212,7 @@ if (isAdmin()) {
 
     </div>
 <?php
-} // End else (regular user view)
+}
 
-require_once 'includes/footer.php'; // Include footer
+require_once 'includes/footer.php';
 ?>

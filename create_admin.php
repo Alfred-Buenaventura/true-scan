@@ -118,4 +118,4 @@ include 'includes/header.php'; // Include the standard header/sidebar
     </div>
 </div>
 
-<?php include 'includes/footer.php'; // Include the standard footer ?>
+<?php include 'includes/footer.php';?>

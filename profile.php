@@ -6,7 +6,6 @@ $db = db();
 $error = '';
 $success = '';
 
-// Handle profile update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     $firstName = clean($_POST['first_name']);
     $lastName = clean($_POST['last_name']);
@@ -28,7 +27,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     }
 }
 
-// Get user data
 $user = getUser($_SESSION['user_id']);
 
 $pageTitle = 'My Profile';
