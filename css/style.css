@@ -2591,7 +2591,7 @@ form input[type="date"].form-control {
     border-color: var(--emerald-600);
 }
 #forgotModal .btn-primary:hover {
-    background-color: var(--emerald-700);
+    background-color: var(--emerald-7DTR-container00);
     border-color: var(--emerald-700);
 }
 
@@ -3139,15 +3139,30 @@ form input[type="date"].form-control {
 /* Filter Styles for Attendance Reports End */
 
 /* print_dtr.php STYLES Start */
+/*
+===================================================================
+FIX FOR SCROLLING: Added 'overflow: auto !important;' to
+ensure this specific page can scroll, overriding the
+dashboard's 'overflow-x: hidden'.
+===================================================================
+*/
 body.dtr-body {
     background: var(--gray-100);
     font-family: Arial, sans-serif;
     color: #000;
+    overflow: auto !important; /* THIS IS THE FIX */
 }
 
 .dtr-container {
-    width: 8.5in;
-    min-height: 11in;
+    /*
+    ===================================================================
+    FIX FOR RESPONSIVE WIDTH: Changed 'width' to 'max-width'
+    and added 'width: 95%' so it shrinks on smaller screens.
+    ===================================================================
+    */
+    max-width: 3.5in;
+    width: 95%;
+    min-height: 8.5in;
     margin: 2rem auto;
     background: #fff;
     padding: 0.75in;
@@ -3231,10 +3246,10 @@ body.dtr-body {
 }
 
 .dtr-footer-content {
-    margin-top: 1.5rem;
+    margin-top: 1rem;
     font-size: 0.9rem;
     line-height: 1.6;
-    flex-grow: 1;
+    flex-grow: 0.5;
 }
 
 .signature-block {
@@ -3273,32 +3288,86 @@ body.dtr-body {
     margin: 0;
 }
 
+/*
+===================================================================
+MODIFICATION: This is the new @media print block
+===================================================================
+*/
 @media print {
+    /* This suggests landscape orientation to the browser */
+    @page {
+        size: landscape;
+        margin: 0.25in;
+    }
+
     body.dtr-body {
         background: #fff;
         margin: 0;
+        overflow: hidden !important; /* Hide scroll on print */
     }
     .print-controls, .back-link {
         display: none !important;
     }
+    
+    /* This is the main DTR form */
     .dtr-container {
-        width: 100%;
-        min-height: 100%;
+        width: 48%;                /* Each DTR is slightly less than half the page */
+        max-width: 48%;
+        height: 7.5in;             /* <-- FIXED HEIGHT to fit on 8.5in paper */
+        min-height: 0 !important;  /* <-- OVERRIDE screen style */
         margin: 0;
-        border: none;
+        border: 1px solid #000;
         box-shadow: none;
-        padding: 0;
+        padding: 0.25in;
+        
+        display: inline-block;
+        vertical-align: top;
+        margin-left: 0.5%;
+        margin-right: 0.5%;
+        box-sizing: border-box; 
     }
-    .attendance-table {
+    
+    /* Scale down all the fonts inside */
+    .dtr-container,
+    .dtr-container .info-table,
+    .dtr-container .dtr-footer-content,
+    .dtr-container .signature-label {
+        font-size: 0.8rem; 
+    }
+    .dtr-container .attendance-table {
+        font-size: 0.8rem;
+        margin-top: 0.5rem;
+    }
+    .dtr-container .attendance-table th {
+        font-size: 0.7rem;
+    }
+    .dtr-container .attendance-table .time-val {
         font-size: 0.8rem;
     }
-    .attendance-table th,
-    .attendance-table td {
-        padding: 4px;
-        height: 23px;
+    .dtr-container .dtr-header h2 {
+        font-size: 1.1rem;
+        margin: 0.25rem 0;
     }
-    .attendance-table .time-val {
-        font-size: 0.8rem;
+    .dtr-container .dtr-header h3 {
+        font-size: 0.9rem;
+    }
+    .dtr-container .info-table {
+        margin-top: 0.5rem;
+    }
+    .dtr-container .info-table .value {
+        font-size: 0.9rem;
+    }
+    .dtr-container .signature-block {
+        margin-top: 1rem;
+        padding-top: 1rem;
+    }
+    .dtr-container .attendance-table th,
+    .dtr-container .attendance-table td {
+        padding: 3px; /* Tighter padding */
+        height: auto;
+    }
+    .dtr-container .dtr-footer-content {
+        margin-top: 0.5rem;
     }
 }
 /* print_dtr.php STYLES End */
@@ -3818,3 +3887,298 @@ body, html {
     color: var(--gray-600, #4b5563);
     margin-top: 1.5rem;
 }
+
+.user-card-status.registered {
+    background-color: var(--emerald-100, #D1FAE5);
+    color: var(--emerald-700, #047857);
+    font-weight: 600;
+}
+
+/* Style for the status area at the bottom of a registered card */
+.user-card-registered-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    text-align: center;
+    font-weight: 600;
+    color: var(--emerald-700, #047857);
+    background-color: var(--emerald-50, #ECFDF5);
+    border-top: 1px solid var(--emerald-200, #A7F3D0);
+    border-radius: 0 0 0.75rem 0.75rem; /* Assumes card has rounded bottom corners */
+    margin-top: auto; /* Pushes this div to the bottom of the card */
+}
+
+ :root {
+            --gray-100: #f3f4f6;
+            --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --shadow-strong: 0 8px 24px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        
+        body.dtr-body {
+            background: var(--gray-100);
+            font-family: Arial, sans-serif;
+            color: #000;
+            overflow: auto !important; 
+        }
+
+        .dtr-container-wrapper {
+            display: flex;
+            flex-direction: column; 
+            align-items: center;
+            gap: 2rem;
+            padding: 2rem 0;
+        }
+
+        .dtr-container {
+            max-width: 8.5in;
+            width: 95%;
+            min-height: 11in;
+            margin: 0 auto;
+            background: #fff;
+            padding: 0.75in;
+            border: 1px solid #ccc;
+            box-shadow: var(--shadow-soft);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dtr-header {
+            text-align: center;
+            font-family: 'Times New Roman', Times, serif;
+        }
+        .dtr-header h3 {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin: 0;
+            text-align: left;
+        }
+        .dtr-header h2 {
+            font-weight: bold;
+            font-size: 1.3rem;
+            margin: 0.5rem 0;
+        }
+
+        .info-table {
+            width: 100%;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            border-collapse: collapse;
+        }
+        .info-table td {
+            padding: 4px 0;
+        }
+        .info-table .label {
+            white-space: nowrap;
+            padding-right: 10px;
+        }
+        .info-table .value {
+            border-bottom: 1px solid #000;
+            width: 100%;
+        }
+
+        .attendance-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            border: 2px solid #000;
+            text-align: center;
+        }
+        .attendance-table th,
+        .attendance-table td {
+            border: 1px solid #000;
+            padding: 5px;
+            height: 25px;
+        }
+        .attendance-table th {
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+        .attendance-table .day-col {
+            width: 8%;
+        }
+        .attendance-table .col-small {
+            width: 10%;
+        }
+        .attendance-table .col-large {
+            width: 13%;
+        }
+        .attendance-table .total-row td {
+            font-weight: bold;
+            text-align: right;
+            padding-right: 1rem;
+        }
+        .attendance-table .total-row td:first-child {
+            text-align: center;
+        }
+        .attendance-table .time-val {
+            font-size: 0.85rem;
+        }
+
+        .dtr-footer-content {
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            flex-grow: 1;
+        }
+
+        .signature-block {
+            margin-top: 3rem;
+            text-align: center;
+        }
+        .signature-line {
+            border-bottom: 1px solid #000;
+            width: 300px;
+            margin: 0 auto;
+            padding-top: 2rem;
+        }
+        .signature-label {
+            font-size: 0.8rem;
+            margin-top: 0.25rem;
+        }
+
+        
+        .print-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: var(--shadow-strong);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: background 0.2s;
+            text-decoration: none;
+            box-sizing: border-box;
+            line-height: 1.5;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-primary {
+            background: #059669;
+            color: white;
+            border-color: #059669;
+        }
+        .btn-primary:hover {
+            background: #047857;
+        }
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+            border-color: #d1d5db;
+        }
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+
+      
+        @media print {
+           
+            @page {
+                size: portrait;
+                margin: 0.25in;
+            }
+
+            body.dtr-body {
+                background: #fff;
+                margin: 0;
+                overflow: hidden !important;
+            }
+            .print-controls, .back-link {
+                display: none !important;
+            }
+            
+            
+            .dtr-container-wrapper {
+                display: block;
+                padding: 0;
+            }
+
+            
+            .dtr-container {
+                width: 48%;                
+                max-width: 48%;
+                height: 12.2in;             
+                min-height: 0 !important;   
+                margin: 0;
+                border: 1px solid #000;
+                box-shadow: none;
+                padding: 0.25in;
+                
+                
+                display: inline-block;
+                vertical-align: top;
+                margin-left: 0.5%;
+                margin-right: 0.5%;
+                box-sizing: border-box; 
+                
+                
+                page-break-inside: avoid;
+            }
+            
+            
+            .dtr-container,
+            .dtr-container .info-table,
+            .dtr-container .dtr-footer-content,
+            .dtr-container .signature-label {
+                font-size: 0.8rem; 
+            }
+            .dtr-container .attendance-table {
+                font-size: 0.8rem;
+                margin-top: 0.5rem;
+            }
+            .dtr-container .attendance-table th {
+                font-size: 0.7rem;
+            }
+            .dtr-container .attendance-table .time-val {
+                font-size: 0.8rem;
+            }
+            .dtr-container .dtr-header h2 {
+                font-size: 1.1rem;
+                margin: 0.25rem 0;
+            }
+            .dtr-container .dtr-header h3 {
+                font-size: 0.9rem;
+            }
+            .dtr-container .info-table {
+                margin-top: 0.5rem;
+            }
+            .dtr-container .info-table .value {
+                font-size: 0.9rem;
+            }
+            .dtr-container .signature-block {
+                margin-top: 0.1rem;
+                padding-top: 1rem;
+            }
+            .dtr-container .attendance-table th,
+            .dtr-container .attendance-table td {
+                padding: 3px; 
+                height: auto;
+            }
+            .dtr-container .dtr-footer-content {
+                margin-top: 0.1rem;
+            }
+        }
