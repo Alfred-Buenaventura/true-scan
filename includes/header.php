@@ -1,3 +1,16 @@
+<?php
+// Ensure config is loaded (though it should be by the parent page)
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// NEW: Check if this is a forced password change
+// We check the session variable that should be set during login
+$isForceChange = (isset($_SESSION['force_password_change']) && $_SESSION['force_password_change'] === 1);
+
+?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
