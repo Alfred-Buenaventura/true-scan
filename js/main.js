@@ -147,7 +147,7 @@ function closeModal(modalId) {
 
 // --- NEW: Logout Confirmation Modal Function ---
 function showLogoutConfirm() {
-    openModal('logoutConfirmModal');
+    openModal('logoutConfirmModal'); // <-- THIS LINE WAS ADDED
 }
 
 
