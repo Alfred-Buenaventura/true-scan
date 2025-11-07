@@ -11,7 +11,7 @@ if (!$user) {
     exit;
 }
 
-// Handle fingerprint data submission (still done via POST)
+/*handles the submission of the fingerprint*/
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fingerprint_data'])) {
     $fingerprintData = $_POST['fingerprint_data'];
     $stmt = $db->prepare("UPDATE users SET fingerprint_data=?, fingerprint_registered=1 WHERE id=?");
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fingerprint_data'])) 
 }
 
 $pageTitle = "Fingerprint Registration";
-// UPDATED Subtitle
+
 $pageSubtitle = "Fingerprint Registration Process";
 include 'includes/header.php';
 ?>
@@ -32,8 +32,6 @@ include 'includes/header.php';
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
-/* Base modal styles if not already in main.css */
-/* Ensure modal styles from style.css are correctly applied */
 
 .scan-step { transition: all 0.3s ease; }
 .scan-step.bg-emerald-500 {
@@ -225,7 +223,7 @@ include 'includes/header.php';
 
 
 <script>
-// --- Modal Helper Functions (Added for reliability) ---
+
 function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.style.display = 'flex';
@@ -234,16 +232,15 @@ function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.style.display = 'none';
 }
-// --- End Added Functions ---
 
-// *** MODIFIED: Updated JS logic ***
+
+
 let scanStep = 1;
-const totalSteps = 3; // Changed to 3
-let retryAttempts = 0; // New: tracks consecutive failures
-const maxRetryAttempts = 5; // New: max failures per step
+const totalSteps = 3; 
+let retryAttempts = 0; 
+const maxRetryAttempts = 5; 
 
-let isDeviceConnected = false; // Track connection status
-let socket = null; // WebSocket connection
+let isDeviceConnected = false; 
 
 const deviceStatusContainer = document.getElementById('deviceStatusContainer');
 const deviceStatusIcon = document.getElementById('deviceStatusIcon');
@@ -253,23 +250,23 @@ const fingerIcon = document.getElementById('fingerIcon');
 const scanStatus = document.getElementById('scanStatus');
 
 
-// --- NEW: Retry Connection Function ---
+
 function retryConnection() {
     closeModal('retryConnectionModal');
     
-    // Reset status text to "Connecting"
+    
     deviceStatusContainer.classList.remove('border-red-200', 'bg-red-50', 'text-red-600', 'border-emerald-200', 'bg-emerald-50', 'text-emerald-700');
     deviceStatusContainer.classList.add('border-gray-200', 'bg-gray-50', 'text-gray-600');
     deviceStatusIcon.className = 'fa fa-spinner fa-spin';
     deviceStatusText.textContent = "Connecting to device...";
     scanBtn.disabled = true;
 
-    // Attempt to connect again
+    
     connectWebSocket();
 }
 
 
-// --- WebSocket Connection Logic ---
+/*bridge app partial code*/
 function connectWebSocket() {
     socket = new WebSocket("ws://127.0.0.1:8080");
 
@@ -278,9 +275,9 @@ function connectWebSocket() {
         deviceStatusContainer.classList.replace('border-gray-200', 'border-emerald-200');
         deviceStatusContainer.classList.replace('bg-gray-50', 'bg-emerald-50');
         deviceStatusContainer.classList.replace('text-gray-600', 'text-emerald-700');
-        deviceStatusIcon.className = 'fa fa-check-circle'; // Change icon
+        deviceStatusIcon.className = 'fa fa-check-circle'; 
         deviceStatusText.textContent = "Device Connected";
-        scanBtn.disabled = false; // Enable scan button
+        scanBtn.disabled = false; 
         console.log("WebSocket Connected");
     };
 
@@ -289,9 +286,9 @@ function connectWebSocket() {
             const data = JSON.parse(event.data);
             console.log("Message from server:", data);
 
-            // --- MODIFIED: Updated success logic ---
+            
             if (data.status === "success" && data.step === scanStep) {
-                // Mark current step as complete
+                
                 const stepEl = document.getElementById(`scanStep${scanStep}`);
                 if (stepEl) {
                     stepEl.classList.add('bg-emerald-500', 'border-emerald-500');
@@ -300,36 +297,36 @@ function connectWebSocket() {
                 }
                 scanStatus.textContent = `Scan ${scanStep} complete.`;
                 
-                // Reset retry counter on success
+                
                 retryAttempts = 0;
                 
-                // Move to next step
+                
                 scanStep++;
 
                 if (scanStep > totalSteps) {
-                    // All 3 steps are done
+                    
                     fingerIcon.classList.remove('pulse');
                     scanStatus.textContent = "All scans complete! Saving...";
-                    // Assume C# bridge sends final template on last success
+                    
                     document.getElementById('fingerprintData').value = data.template; 
-                    // Submit the form
+                    
                     setTimeout(() => document.getElementById('fingerprintForm').submit(), 1500);
                 } else {
-                    // Prompt for the next step
-                    setTimeout(promptForScan, 1500); // Wait 1.5s, then prompt
+                    
+                    setTimeout(promptForScan, 1500); 
                 }
 
-            // --- MODIFIED: Updated error logic ---
+            
             } else if (data.status === "error") {
                 fingerIcon.classList.remove('pulse');
-                retryAttempts++; // Increment failure count
+                retryAttempts++; 
 
                 if (retryAttempts >= maxRetryAttempts) {
-                    // Max failures reached
+                    
                     scanStatus.textContent = "Maximum retry attempts reached. Please restart.";
                     openModal('maxFailuresModal');
                 } else {
-                    // Show retry-able error
+                    
                     let remaining = maxRetryAttempts - retryAttempts;
                     const attemptsMsg = `You have ${remaining} ${remaining === 1 ? 'attempt' : 'attempts'} remaining.`;
                     
@@ -350,10 +347,10 @@ function connectWebSocket() {
         isDeviceConnected = false;
         deviceStatusContainer.classList.remove('border-emerald-200', 'bg-emerald-50', 'text-emerald-700');
         deviceStatusContainer.classList.add('border-red-200', 'bg-red-50', 'text-red-600');
-        deviceStatusIcon.className = 'fa fa-times-circle'; // Error icon
+        deviceStatusIcon.className = 'fa fa-times-circle';
         deviceStatusText.textContent = "Device Not Detected";
-        scanBtn.disabled = true; // Disable scan button
-        openModal('deviceErrorModal'); // Show error modal
+        scanBtn.disabled = true; 
+        openModal('deviceErrorModal'); 
         console.error("WebSocket Error");
     };
 

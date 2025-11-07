@@ -6,6 +6,7 @@ $db = db();
 $error = '';
 $success = '';
 $activeTab = 'csv';
+$jsShowDuplicateModal = false; // NEW: Flag for duplicate user modal
 
 /*CSV Import*/
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csvFile'])) {
@@ -19,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csvFile'])) {
                 throw new Exception("Could not open uploaded file.");
             }
 
-            fgetcsv($file);
+            fgetcsv($file); // Skip header row
 
             $csvData = [];
             $csvFacultyIds = [];
@@ -68,7 +69,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csvFile'])) {
 
                 $stmtInsert->bind_param("sssssssss", $facultyId, $username, $password, $firstName, $lastName, $middleName, $email, $phone, $role);
                 $stmtInsert->execute();
-                $imported++;
+                
+                if ($stmtInsert->affected_rows > 0) {
+                    $newUserId = $db->insert_id;
+                    // NEW: Create notification for the new user
+                    $notifMessage = "Welcome, $firstName! Your account has been created. Please change your password on first login.";
+                    createNotification($newUserId, $notifMessage, 'success');
+                    
+                    // NEW: Send placeholder email
+                    sendEmail($email, "Your BPC Account is Ready", $notifMessage . " Your default password is: DefaultPass123!");
+                    $imported++;
+                }
             }
 
             logActivity($_SESSION['user_id'], 'CSV Import', "Imported $imported users. Skipped $skipped.");
@@ -105,10 +116,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_user'])) {
                 $stmt = $db->prepare("INSERT INTO users (faculty_id, username, password, first_name, last_name, middle_name, email, phone, role, force_password_change) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
                 $stmt->bind_param("sssssssss", $facultyId, $username, $password, $firstName, $lastName, $middleName, $email, $phone, $role);
                 $stmt->execute();
-                logActivity($_SESSION['user_id'], 'User Created', "Created user: $facultyId");
-                $success = "Account created successfully! User: $firstName $lastName";
+                
+                if ($stmt->affected_rows > 0) {
+                    $newUserId = $db->insert_id;
+                    logActivity($_SESSION['user_id'], 'User Created', "Created user: $facultyId");
+                    $success = "Account created successfully! User: $firstName $lastName";
+
+                    // NEW: Create notification for the new user
+                    $notifMessage = "Welcome, $firstName! Your account has been created. Please change your password on first login.";
+                    createNotification($newUserId, $notifMessage, 'success');
+                    
+                    // NEW: Send placeholder email
+                    sendEmail($email, "Your BPC Account is Ready", $notifMessage . " Your default password is: DefaultPass123!");
+                }
             } else {
-                $error = 'Faculty ID already exists';
+                // NEW: Set flag to show duplicate modal
+                $jsShowDuplicateModal = true;
             }
         }
     } catch (Exception $e) {
@@ -563,6 +586,24 @@ function safe_js_data($data) {
         </div>
     </div>
 
+    <div id="duplicateUserModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header" style="background-color: var(--yellow-50);">
+                <h3 style="color: var(--yellow-700);"><i class="fa-solid fa-triangle-exclamation"></i> Duplicate Account</h3>
+            </div>
+            <div class="modal-body">
+                <p class="fs-large" style="color: var(--gray-700);">
+                    An account with this **Faculty ID** already exists in the system.
+                </p>
+                <p class="fs-small" style="color: var(--gray-600); margin-top: 1rem;">
+                    Please check the "View All Accounts" tab to find the existing user. Duplicate accounts cannot be created.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="closeModal('duplicateUserModal')">OK</button>
+            </div>
+        </div>
+    </div>
     <div id="doubleConfirmModal" class="modal">
         <div class="modal-content modal-small">
             <div class="modal-header" style="background: var(--red-50);">
@@ -599,13 +640,30 @@ let pendingAction = null;
 let deleteUserId = null;
 let deleteUserName = null;
 
+// NEW: Helper function to open/close modals
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+// END NEW
+
 document.addEventListener('DOMContentLoaded', function() {
     window.showTab = function(event, tab) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         const el = document.getElementById(tab + 'Tab');
         if (el) el.classList.add('active');
-        if (event && event.target) event.target.classList.add('active');
+        if (event && event.target) {
+            // Check if the click target is the button itself or an icon inside it
+            const btn = event.target.closest('.tab-btn');
+            if (btn) btn.classList.add('active');
+        }
     };
 
     const notifications = document.querySelectorAll('.notification');
@@ -658,6 +716,13 @@ document.addEventListener('DOMContentLoaded', function() {
         openArchivedModal();
     }, 100);
     <?php endif; ?>
+
+    // NEW: Check if the duplicate modal flag is set
+    <?php if (isset($jsShowDuplicateModal) && $jsShowDuplicateModal): ?>
+    setTimeout(() => {
+        openModal('duplicateUserModal');
+    }, 100);
+    <?php endif; ?>
 });
 
 /*Edit user functions*/
@@ -682,15 +747,11 @@ function hideEditForm() {
 }
 
 function openArchivedModal() {
-    const m = document.getElementById('archivedModal');
-    if (m) m.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
+    openModal('archivedModal');
 }
 
 function closeArchivedModal() {
-    const m = document.getElementById('archivedModal');
-    if (m) m.style.display = 'none';
-    document.body.style.overflow = 'auto';
+    closeModal('archivedModal');
 }
 
 function confirmDownload() {
@@ -703,9 +764,7 @@ function confirmDownload() {
     pendingAction = function() {
         window.location.href = 'download_template.php';
     };
-
-    document.getElementById('confirmModal').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
+    openModal('confirmModal');
 }
 
 /*Confirmation for archive, restore and delete actions*/
@@ -723,9 +782,7 @@ function confirmArchive(userId, userName) {
         document.body.appendChild(form);
         form.submit();
     };
-
-    document.getElementById('confirmModal').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
+    openModal('confirmModal');
 }
 
 function confirmRestore(userId, userName) {
@@ -742,9 +799,7 @@ function confirmRestore(userId, userName) {
         document.body.appendChild(form);
         form.submit();
     };
-
-    document.getElementById('confirmModal').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
+    openModal('confirmModal');
 }
 
 function confirmDelete(userId, userName) {
@@ -762,35 +817,28 @@ function confirmDelete(userId, userName) {
         setTimeout(() => {
             const doubleMsg = document.getElementById('doubleConfirmMessage');
             if (doubleMsg) doubleMsg.textContent = `Type confirmation: Are you absolutely sure you want to delete ${userName}?`;
-            const doubleModal = document.getElementById('doubleConfirmModal');
-            if (doubleModal) doubleModal.style.display = 'flex';
-            document.body.style.overflow = 'hidden';
+            openModal('doubleConfirmModal');
         }, 300);
     };
-
-    document.getElementById('confirmModal').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
+    openModal('confirmModal');
 }
 
 function closeConfirmModal() {
-    const confirm = document.getElementById('confirmModal');
-    if (confirm) confirm.style.display = 'none';
-    document.body.style.overflow = 'auto';
-    
+    closeModal('confirmModal');
+    // Check if archived modal is open, and if so, keep body overflow hidden
     const archived = document.getElementById('archivedModal');
     if (archived && archived.style.display === 'flex') {
-        document.body.style.overflow = 'hidden';
+        
     }
     pendingAction = null;
 }
 
 function closeDoubleConfirmModal() {
-    const doubleModal = document.getElementById('doubleConfirmModal');
-    if (doubleModal) doubleModal.style.display = 'none';
-    document.body.style.overflow = 'auto';
+    closeModal('doubleConfirmModal');
+    // Check if archived modal is open, and if so, keep body overflow hidden
     const archived = document.getElementById('archivedModal');
     if (archived && archived.style.display === 'flex') {
-        document.body.style.overflow = 'hidden';
+        
     }
     deleteUserId = null;
     deleteUserName = null;
@@ -813,19 +861,12 @@ function executeDeleteAction() {
 }
 
 window.onclick = function(event) {
-    const archivedModal = document.getElementById('archivedModal');
-    const confirmModal = document.getElementById('confirmModal');
-    const doubleConfirmModal = document.getElementById('doubleConfirmModal');
-
-    if (event.target === archivedModal) {
-        closeArchivedModal();
-    }
-    if (event.target === confirmModal) {
-        closeConfirmModal();
-    }
-    if (event.target === doubleConfirmModal) {
-        closeDoubleConfirmModal();
-    }
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        if (event.target === modal) {
+            closeModal(modal.id);
+        }
+    });
 };
 </script>
 

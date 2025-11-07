@@ -82,11 +82,32 @@ function getUser($userId) {
     return $stmt->get_result()->fetch_assoc();
 }
 
+/**
+ * NEW: Function to create an in-app notification for a user.
+ */
+function createNotification($userId, $message, $type = 'info') {
+    $db = db();
+    $stmt = $db->prepare("INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)");
+    $stmt->bind_param("iss", $userId, $message, $type);
+    $stmt->execute();
+}
+
 // Function to send an email (placeholder for a real email service)
 function sendEmail($to, $subject, $message) {
-    $headers = "From: noreply@bpc.edu.ph\r\n";
+    // Note: To send a real email, a service like SendGrid, Mailgun, or SMTP is needed.
+    // The default mail() function is unreliable on most servers and may be blocked.
+    // For production, this function MUST be replaced with a robust email library (e.g., PHPMailer).
+    $headers = "From: BPC Attendance Admin <noreply@bpc.edu.ph>\r\n";
+    $headers .= "Reply-To: noreply@bpc.edu.ph\r\n";
     $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-    return mail($to, $subject, $message, $headers);
+    $headers .= "MIME-Version: 1.0\r\n";
+    
+    // Use mail() for now as a placeholder
+    @mail($to, $subject, $message, $headers);
+    
+    // Placeholder for SMS sending
+    // sendSms($phone, $message);
+    return true;
 }
 
 // Function to return a standardized JSON response for API calls

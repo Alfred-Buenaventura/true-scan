@@ -8,6 +8,7 @@ $success = '';
 $users = [];
 $selectedUserId = null;
 $selectedUser = null;
+$activeTab = 'manage'; // NEW: Default tab
 
 if (isAdmin()) {
     $users = $db->query("SELECT id, faculty_id, first_name, last_name FROM users WHERE status='active' ORDER BY first_name")->fetch_all(MYSQLI_ASSOC);
@@ -36,7 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_schedule'])) {
             $addedCount = 0;
             $skippedCount = 0;
             
-            $stmt = $db->prepare("INSERT INTO class_schedules (user_id, day_of_week, subject, start_time, end_time, room) VALUES (?, ?, ?, ?, ?, ?)");
+            // MODIFIED: Added 'status' column, set to 'pending'
+            $stmt = $db->prepare("INSERT INTO class_schedules (user_id, day_of_week, subject, start_time, end_time, room, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')");
 
             foreach ($days as $index => $day) {
                 $subject = clean($subjects[$index]);
@@ -55,13 +57,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_schedule'])) {
             }
 
             if ($addedCount > 0) {
-                logActivity($_SESSION['user_id'], 'Schedule Added', "Added $addedCount schedule(s) for user ID: $userIdToAdd");
-                $success = "Successfully added $addedCount new schedule(s)!";
+                logActivity($_SESSION['user_id'], 'Schedule Submitted', "Submitted $addedCount schedule(s) for approval for user ID: $userIdToAdd");
+                $success = "Successfully submitted $addedCount new schedule(s) for approval!";
                 if ($skippedCount > 0) {
                     $success .= " (Skipped $skippedCount empty rows)";
                 }
             } else {
-                $error = 'No schedules were added. Please ensure all fields are filled out.';
+                $error = 'No schedules were submitted. Please ensure all fields are filled out.';
             }
         }
     }
@@ -80,11 +82,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_schedule'])) {
         $startTime = clean($_POST['start_time']);
         $endTime = clean($_POST['end_time']);
         $room = clean($_POST['room']);
-        $stmt = $db->prepare("UPDATE class_schedules SET day_of_week=?, subject=?, start_time=?, end_time=?, room=? WHERE id=? AND user_id=?");
+        
+        // MODIFIED: Set status to 'pending' on edit
+        $stmt = $db->prepare("UPDATE class_schedules SET day_of_week=?, subject=?, start_time=?, end_time=?, room=?, status='pending' WHERE id=? AND user_id=?");
         $stmt->bind_param("sssssii", $dayOfWeek, $subject, $startTime, $endTime, $room, $scheduleId, $userIdToEdit);
+        
         if ($stmt->execute()) {
-            logActivity($_SESSION['user_id'], 'Schedule Updated', "Updated schedule ID: $scheduleId for user ID: $userIdToEdit");
-            $success = 'Schedule updated successfully!';
+            logActivity($_SESSION['user_id'], 'Schedule Updated', "Updated schedule ID: $scheduleId for user ID: $userIdToEdit. Awaiting approval.");
+            $success = 'Schedule updated successfully! It has been re-submitted for approval.';
         } else {
             $error = 'Failed to update schedule';
         }
@@ -99,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_schedule'])) {
     if (!isAdmin() && $userIdToDelete !== $_SESSION['user_id']) {
         $error = 'Access Denied. You can only delete your own schedules.';
     } else {
+        // MODIFIED: This will delete the schedule regardless of status (pending, approved, etc)
         $stmt = $db->prepare("DELETE FROM class_schedules WHERE id=? AND user_id=?");
         $stmt->bind_param("ii", $scheduleId, $userIdToDelete);
         if ($stmt->execute()) {
@@ -110,19 +116,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_schedule'])) {
     }
 }
 
+// NEW: Handle Approve Schedule
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['approve_schedule'])) {
+    requireAdmin(); // Only admins can do this
+    $activeTab = 'pending';
+    $scheduleId = (int)$_POST['schedule_id'];
+    $userId = (int)$_POST['user_id'];
+    $subject = clean($_POST['subject']); // Get subject for notification
+
+    $stmt = $db->prepare("UPDATE class_schedules SET status='approved' WHERE id=?");
+    $stmt->bind_param("i", $scheduleId);
+    if ($stmt->execute()) {
+        logActivity($_SESSION['user_id'], 'Schedule Approved', "Approved schedule ID: $scheduleId for user ID: $userId");
+        createNotification($userId, "Your schedule for '$subject' has been approved.", 'success');
+        sendEmail(getUser($userId)['email'], "Schedule Approved", "Your schedule for '$subject' has been approved by the administrator.");
+        $success = 'Schedule approved successfully!';
+    } else {
+        $error = 'Failed to approve schedule.';
+    }
+}
+
+// NEW: Handle Decline Schedule
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['decline_schedule'])) {
+    requireAdmin(); // Only admins can do this
+    $activeTab = 'pending';
+    $scheduleId = (int)$_POST['schedule_id'];
+    $userId = (int)$_POST['user_id'];
+    $subject = clean($_POST['subject']); // Get subject for notification
+
+    $stmt = $db->prepare("UPDATE class_schedules SET status='declined' WHERE id=?");
+    $stmt->bind_param("i", $scheduleId);
+    if ($stmt->execute()) {
+        logActivity($_SESSION['user_id'], 'Schedule Declined', "Declined schedule ID: $scheduleId for user ID: $userId");
+        createNotification($userId, "Your schedule for '$subject' has been declined.", 'warning');
+        sendEmail(getUser($userId)['email'], "Schedule Declined", "Your schedule for '$subject' has been declined by the administrator. Please review and resubmit if necessary.");
+        $success = 'Schedule declined successfully.';
+    } else {
+        $error = 'Failed to decline schedule.';
+    }
+}
+
+
 $filterDayOfWeek = $_GET['day_of_week'] ?? '';
 $filterStartDate = $_GET['start_date'] ?? ''; 
 $filterEndDate = $_GET['end_date'] ?? '';     
 
 $schedules = [];
+$pendingSchedules = []; // NEW: Array for pending schedules
 $params = [];
 $types = "";
 
 if (isAdmin()) {
+    // MODIFIED: This query now fetches APPROVED schedules
     $query = "SELECT cs.*, u.first_name, u.last_name, u.faculty_id 
               FROM class_schedules cs 
               JOIN users u ON cs.user_id = u.id";
-    $conditions = [];
+    $conditions = ["cs.status = 'approved'"]; // MODIFIED: Only show approved
 
     if ($selectedUserId) {
         $conditions[] = "cs.user_id = ?";
@@ -135,15 +184,24 @@ if (isAdmin()) {
         $types .= "s";
     }
     
-    if (!empty($conditions)) {
-        $query .= " WHERE " . implode(" AND ", $conditions);
-    }
+    $query .= " WHERE " . implode(" AND ", $conditions);
     $query .= " ORDER BY u.last_name, u.first_name, FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'), start_time";
 
+    // NEW: Query for PENDING schedules (unfiltered for simplicity)
+    $pendingQuery = $db->query("SELECT cs.*, u.first_name, u.last_name, u.faculty_id 
+                                FROM class_schedules cs 
+                                JOIN users u ON cs.user_id = u.id 
+                                WHERE cs.status = 'pending' 
+                                ORDER BY cs.created_at ASC");
+    if ($pendingQuery) {
+        $pendingSchedules = $pendingQuery->fetch_all(MYSQLI_ASSOC);
+    }
+
 } else {
+    // MODIFIED: User's query
     $query = "SELECT *, null as first_name, null as last_name, null as faculty_id 
               FROM class_schedules 
-              WHERE user_id = ?";
+              WHERE user_id = ? AND status != 'declined'"; // MODIFIED: Show pending and approved
     $params = [$selectedUserId];
     $types = "i";
     
@@ -166,6 +224,7 @@ if ($stmt) {
     $error = "Database query error: " . $db->error;
 }
 
+// ... (Rest of the stats calculations remain the same) ...
 $weeklyHours = 0;
 $totalSchedules = 0;
 $totalUsersWithSchedules = 0;
@@ -189,8 +248,8 @@ if ($selectedUserId) {
         $error .= " Failed to prepare user query. DB Error: " . $db->error;
     }
 
-    /*calculates the total hours of the user*/
-    $stmtHours = $db->prepare("SELECT SUM(TIME_TO_SEC(TIMEDIFF(end_time, start_time))/3600) as total FROM class_schedules WHERE user_id=?");
+    /*calculates the total hours of the user (ONLY APPROVED)*/
+    $stmtHours = $db->prepare("SELECT SUM(TIME_TO_SEC(TIMEDIFF(end_time, start_time))/3600) as total FROM class_schedules WHERE user_id=? AND status='approved'");
     if ($stmtHours) {
         $stmtHours->bind_param("i", $selectedUserId);
         if ($stmtHours->execute()) { 
@@ -213,7 +272,8 @@ if ($selectedUserId) {
     }
 
 } elseif (isAdmin()) {
-    $schedulesResult = $db->query("SELECT COUNT(*) as c FROM class_schedules");
+    // Total APPROVED schedules
+    $schedulesResult = $db->query("SELECT COUNT(*) as c FROM class_schedules WHERE status='approved'");
     if ($schedulesResult) {
         $totalSchedules = $schedulesResult->fetch_assoc()['c'];
     } else {
@@ -221,7 +281,8 @@ if ($selectedUserId) {
         $error .= " Failed to get total schedules count. DB Error: " . $db->error;
     }
     
-    $usersResult = $db->query("SELECT COUNT(DISTINCT user_id) as c FROM class_schedules");
+    // Total users with APPROVED schedules
+    $usersResult = $db->query("SELECT COUNT(DISTINCT user_id) as c FROM class_schedules WHERE status='approved'");
     if ($usersResult) {
         $totalUsersWithSchedules = $usersResult->fetch_assoc()['c'];
     } else {
@@ -229,6 +290,7 @@ if ($selectedUserId) {
         $error .= " Failed to get total users with schedules count. DB Error: " . $db->error;
     }
 }
+// ... (End of stats calculations) ...
 
 $pageTitle = 'Schedule Management';
 $pageSubtitle = isAdmin() ? 'Manage class schedules and working hours' : 'Manage your class schedule';
@@ -268,7 +330,7 @@ include 'includes/header.php';
                     </svg>
                 </div>
                 <div class="stat-details">
-                    <p>Total Weekly Hours</p>
+                    <p>Total Approved Weekly Hours</p>
                     <div class="stat-value emerald"><?= $weeklyHours ?>h</div>
                 </div>
             </div>
@@ -286,7 +348,7 @@ include 'includes/header.php';
             </div>
 
         <?php elseif (isAdmin()):?>
-            <div class="stat-card stat-card-small">
+             <div class="stat-card stat-card-small">
                 <div class="stat-icon emerald">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
@@ -305,7 +367,7 @@ include 'includes/header.php';
                     </svg>
                 </div>
                 <div class="stat-details">
-                    <p>Total Schedules (System)</p>
+                    <p>Total Approved Schedules</p>
                     <div class="stat-value emerald"><?= $totalSchedules ?></div>
                 </div>
             </div>
@@ -317,7 +379,7 @@ include 'includes/header.php';
                     </svg>
                 </div>
                 <div class="stat-details">
-                    <p>Users with Schedules</p>
+                    <p>Users with Approved Schedules</p>
                     <div class="stat-value emerald"><?= $totalUsersWithSchedules ?></div>
                 </div>
             </div>
@@ -343,108 +405,194 @@ include 'includes/header.php';
                 <?php endif; ?>
             </div>
         </div>
-        <div class="card-body">
-            <form method="GET" class="schedule-filter-form">
-                 <div class="schedule-filter-grid">
-                    
-                    <?php if (isAdmin()):?>
-                    <div class="form-group">
-                        <label>Select User</label>
-                        <select name="user_id" class="form-control" onchange="this.form.submit()">
-                            <option value="">-- All Users --</option>
-                            <?php foreach ($users as $user): ?>
-                                <option value="<?= $user['id'] ?>" <?= $selectedUserId == $user['id'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($user['first_name'] . ' ' . $user['last_name']) ?> (<?= htmlspecialchars($user['faculty_id']) ?>)
-                                </option>
+
+        <?php if (isAdmin()): ?>
+        <div class="tabs" style="padding: 0 1.5rem; background: var(--gray-50);">
+            <button class="tab-btn <?= $activeTab === 'manage' ? 'active' : '' ?>" onclick="showScheduleTab(event, 'manage')">
+                <i class="fa-solid fa-check-circle"></i> Approved Schedules (<?= count($schedules) ?>)
+            </button>
+            <button class="tab-btn <?= $activeTab === 'pending' ? 'active' : '' ?>" onclick="showScheduleTab(event, 'pending')" style="position: relative;">
+                <i class="fa-solid fa-clock"></i> Pending Approval
+                <?php if (count($pendingSchedules) > 0): ?>
+                    <span style="position: absolute; top: 0.75rem; right: 0.75rem; background: var(--red-600); color: white; border-radius: 50%; width: 24px; height: 24px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; font-weight: 700;">
+                        <?= count($pendingSchedules) ?>
+                    </span>
+                <?php endif; ?>
+            </button>
+        </div>
+        <?php endif; ?>
+        <div id="manageTab" class="tab-content <?= $activeTab === 'manage' ? 'active' : '' ?>">
+            <div class="card-body">
+                <form method="GET" class="schedule-filter-form">
+                    <div class="schedule-filter-grid">
+                        
+                        <?php if (isAdmin()):?>
+                        <div class="form-group">
+                            <label>Select User</label>
+                            <select name="user_id" class="form-control" onchange="this.form.submit()">
+                                <option value="">-- All Users --</option>
+                                <?php foreach ($users as $user): ?>
+                                    <option value="<?= $user['id'] ?>" <?= $selectedUserId == $user['id'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($user['first_name'] . ' ' . $user['last_name']) ?> (<?= htmlspecialchars($user['faculty_id']) ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <?php endif; ?>
+
+                        <div class="form-group">
+                            <label>Day of Week</label>
+                            <select name="day_of_week" class="form-control" onchange="this.form.submit()">
+                                <option value="">All Days</option>
+                                <option value="Monday" <?= $filterDayOfWeek == 'Monday' ? 'selected' : '' ?>>Monday</option>
+                                <option value="Tuesday" <?= $filterDayOfWeek == 'Tuesday' ? 'selected' : '' ?>>Tuesday</option>
+                                <option value="Wednesday" <?= $filterDayOfWeek == 'Wednesday' ? 'selected' : '' ?>>Wednesday</option>
+                                <option value="Thursday" <?= $filterDayOfWeek == 'Thursday' ? 'selected' : '' ?>>Thursday</option>
+                                <option value="Friday" <?= $filterDayOfWeek == 'Friday' ? 'selected' : '' ?>>Friday</option>
+                                <option value="Saturday" <?= $filterDayOfWeek == 'Saturday' ? 'selected' : '' ?>>Saturday</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Start Date (Optional)</label>
+                            <input type="date" name="start_date" class="form-control" value="<?= htmlspecialchars($filterStartDate) ?>">
+                        </div>
+                        <div class="form-group">
+                            <label>End Date (Optional)</label>
+                            <input type="date" name="end_date" class="form-control" value="<?= htmlspecialchars($filterEndDate) ?>">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Apply Filters</button>
+                    </div>
+                </form>
+
+                <?php if (empty($schedules)): ?>
+                    <p class="empty-schedule-message">No <?= isAdmin() ? 'approved' : '' ?> schedules found matching the selected filters.</p>
+                <?php else: ?>
+                    <table id="schedule-table"> <thead>
+                            <tr>
+                                <?php if (isAdmin() && !$selectedUserId):?>
+                                    <th>User</th>
+                                <?php endif; ?>
+                                <th>Day</th>
+                                <th>Subject</th>
+                                <th>Time</th>
+                                <th>Duration</th>
+                                <th>Room</th>
+                                <?php if (!isAdmin()): ?>
+                                    <th>Status</th> <?php endif; ?>
+                                <th class="table-actions">Actions</th> </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($schedules as $schedule): ?>
+                            <?php 
+                                $start = new DateTime($schedule['start_time']);
+                                $end = new DateTime($schedule['end_time']);
+                                $duration = $start->diff($end);
+                                $hours = $duration->h + ($duration->i / 60);
+                            ?>
+                            <tr>
+                                <?php if (isAdmin() && !$selectedUserId):?>
+                                    <td>
+                                        <div class="table-user-name"><?= htmlspecialchars($schedule['first_name'] . ' ' . $schedule['last_name']) ?></div>
+                                        <div class="table-user-id"><?= htmlspecialchars($schedule['faculty_id']) ?></div>
+                                    </td>
+                                <?php endif; ?>
+
+                                <td class="table-day-highlight"><?= htmlspecialchars($schedule['day_of_week']) ?></td>
+                                <td><?= htmlspecialchars($schedule['subject']) ?></td>
+                                <td><?= date('g:i A', strtotime($schedule['start_time'])) ?> - <?= date('g:i A', strtotime($schedule['end_time'])) ?></td>
+                                <td><?= number_format($hours, 1) ?>h</td>
+                                <td><?= htmlspecialchars($schedule['room'] ?? '-') ?></td>
+                                
+                                <?php if (!isAdmin()): ?>
+                                <td>
+                                    <?php if ($schedule['status'] == 'pending'): ?>
+                                        <span class="role-badge" style="background: var(--yellow-100); color: var(--yellow-700);">Pending</span>
+                                    <?php elseif ($schedule['status'] == 'approved'): ?>
+                                        <span class="role-badge">Approved</span>
+                                    <?php endif; ?>
+                                </td>
+                                <?php endif; ?>
+                                
+                                <td class="table-actions"> <button class="btn btn-sm btn-primary" onclick="openEditModal(
+                                        <?= $schedule['id'] ?>,
+                                        <?= $schedule['user_id'] ?>,
+                                        '<?= htmlspecialchars($schedule['day_of_week']) ?>',
+                                        '<?= htmlspecialchars(addslashes($schedule['subject'])) ?>',
+                                        '<?= htmlspecialchars($schedule['start_time']) ?>',
+                                        '<?= htmlspecialchars($schedule['end_time']) ?>',
+                                        '<?= htmlspecialchars(addslashes($schedule['room'] ?? '')) ?>'
+                                    )">
+                                        <i class="fa-solid fa-pen"></i> Edit
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" onclick="openDeleteModal(<?= $schedule['id'] ?>, <?= $schedule['user_id'] ?>, '<?= htmlspecialchars(addslashes($schedule['subject'])) ?>', '<?= htmlspecialchars($schedule['day_of_week']) ?>')">
+                                        <i class="fa-solid fa-trash"></i> Delete
+                                    </button>
+                                </td>
+                            </tr>
                             <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <?php endif; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
+            </div>
+        </div>
 
-                    <div class="form-group">
-                        <label>Day of Week</label>
-                        <select name="day_of_week" class="form-control" onchange="this.form.submit()">
-                            <option value="">All Days</option>
-                            <option value="Monday" <?= $filterDayOfWeek == 'Monday' ? 'selected' : '' ?>>Monday</option>
-                            <option value="Tuesday" <?= $filterDayOfWeek == 'Tuesday' ? 'selected' : '' ?>>Tuesday</option>
-                            <option value="Wednesday" <?= $filterDayOfWeek == 'Wednesday' ? 'selected' : '' ?>>Wednesday</option>
-                            <option value="Thursday" <?= $filterDayOfWeek == 'Thursday' ? 'selected' : '' ?>>Thursday</option>
-                            <option value="Friday" <?= $filterDayOfWeek == 'Friday' ? 'selected' : '' ?>>Friday</option>
-                            <option value="Saturday" <?= $filterDayOfWeek == 'Saturday' ? 'selected' : '' ?>>Saturday</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Start Date (Optional)</label>
-                        <input type="date" name="start_date" class="form-control" value="<?= htmlspecialchars($filterStartDate) ?>">
-                    </div>
-                     <div class="form-group">
-                        <label>End Date (Optional)</label>
-                        <input type="date" name="end_date" class="form-control" value="<?= htmlspecialchars($filterEndDate) ?>">
-                    </div>
-
-                    <button type="submit" class="btn btn-primary">Apply Filters</button>
-                 </div>
-            </form>
-
-            <?php if (empty($schedules)): ?>
-                <p class="empty-schedule-message">No schedules found matching the selected filters.</p>
-            <?php else: ?>
-                <table id="schedule-table"> <thead>
-                        <tr>
-                            <?php if (isAdmin() && !$selectedUserId):?>
+        <?php if (isAdmin()): ?>
+        <div id="pendingTab" class="tab-content <?= $activeTab === 'pending' ? 'active' : '' ?>">
+            <div class="card-body">
+                <?php if (empty($pendingSchedules)): ?>
+                    <p class="empty-schedule-message">No schedules are currently pending approval.</p>
+                <?php else: ?>
+                    <table id="pending-schedule-table">
+                        <thead>
+                            <tr>
                                 <th>User</th>
-                            <?php endif; ?>
-                            <th>Day</th>
-                            <th>Subject</th>
-                            <th>Time</th>
-                            <th>Duration</th>
-                            <th>Room</th>
-                            <th class="table-actions">Actions</th> </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($schedules as $schedule): ?>
-                        <?php 
-                            $start = new DateTime($schedule['start_time']);
-                            $end = new DateTime($schedule['end_time']);
-                            $duration = $start->diff($end);
-                            $hours = $duration->h + ($duration->i / 60);
-                        ?>
-                        <tr>
-                            <?php if (isAdmin() && !$selectedUserId):?>
+                                <th>Day</th>
+                                <th>Subject</th>
+                                <th>Time</th>
+                                <th>Room</th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($pendingSchedules as $schedule): ?>
+                            <tr>
                                 <td>
                                     <div class="table-user-name"><?= htmlspecialchars($schedule['first_name'] . ' ' . $schedule['last_name']) ?></div>
                                     <div class="table-user-id"><?= htmlspecialchars($schedule['faculty_id']) ?></div>
                                 </td>
-                            <?php endif; ?>
-
-                            <td class="table-day-highlight"><?= htmlspecialchars($schedule['day_of_week']) ?></td>
-                            <td><?= htmlspecialchars($schedule['subject']) ?></td>
-                            <td><?= date('g:i A', strtotime($schedule['start_time'])) ?> - <?= date('g:i A', strtotime($schedule['end_time'])) ?></td>
-                            <td><?= number_format($hours, 1) ?>h</td>
-                            <td><?= htmlspecialchars($schedule['room'] ?? '-') ?></td>
-                            <td class="table-actions"> <button class="btn btn-sm btn-primary" onclick="openEditModal(
-                                    <?= $schedule['id'] ?>,
-                                    <?= $schedule['user_id'] ?>,
-                                    '<?= htmlspecialchars($schedule['day_of_week']) ?>',
-                                    '<?= htmlspecialchars(addslashes($schedule['subject'])) ?>',
-                                    '<?= htmlspecialchars($schedule['start_time']) ?>',
-                                    '<?= htmlspecialchars($schedule['end_time']) ?>',
-                                    '<?= htmlspecialchars(addslashes($schedule['room'] ?? '')) ?>'
-                                )">
-                                    <i class="fa-solid fa-pen"></i> Edit
-                                </button>
-                                <button class="btn btn-sm btn-danger" onclick="openDeleteModal(<?= $schedule['id'] ?>, <?= $schedule['user_id'] ?>, '<?= htmlspecialchars(addslashes($schedule['subject'])) ?>', '<?= htmlspecialchars($schedule['day_of_week']) ?>')">
-                                    <i class="fa-solid fa-trash"></i> Delete
-                                </button>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            <?php endif; ?>
+                                <td class="table-day-highlight"><?= htmlspecialchars($schedule['day_of_week']) ?></td>
+                                <td><?= htmlspecialchars($schedule['subject']) ?></td>
+                                <td><?= date('g:i A', strtotime($schedule['start_time'])) ?> - <?= date('g:i A', strtotime($schedule['end_time'])) ?></td>
+                                <td><?= htmlspecialchars($schedule['room'] ?? '-') ?></td>
+                                <td style="text-align: right;">
+                                    <form method="POST" style="display: inline-block; margin: 0 4px;">
+                                        <input type="hidden" name="schedule_id" value="<?= $schedule['id'] ?>">
+                                        <input type="hidden" name="user_id" value="<?= $schedule['user_id'] ?>">
+                                        <input type="hidden" name="subject" value="<?= htmlspecialchars($schedule['subject']) ?>">
+                                        <button type="submit" name="approve_schedule" class="btn btn-sm btn-success">
+                                            <i class="fa-solid fa-check"></i> Approve
+                                        </button>
+                                    </form>
+                                    <form method="POST" style="display: inline-block; margin: 0 4px;">
+                                        <input type="hidden" name="schedule_id" value="<?= $schedule['id'] ?>">
+                                        <input type="hidden" name="user_id" value="<?= $schedule['user_id'] ?>">
+                                        <input type="hidden" name="subject" value="<?= htmlspecialchars($schedule['subject']) ?>">
+                                        <button type="submit" name="decline_schedule" class="btn btn-sm btn-danger">
+                                            <i class="fa-solid fa-times"></i> Decline
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
+            </div>
         </div>
-    </div>
+        <?php endif; ?>
+        </div>
 </div>
 
 <div id="addScheduleModal" class="modal">
@@ -468,7 +616,7 @@ include 'includes/header.php';
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('addScheduleModal')">Cancel</button>
-                <button type="submit" name="add_schedule" class="btn btn-primary">Save All Schedules</button>
+                <button type="submit" name="add_schedule" class="btn btn-primary">Submit for Approval</button>
             </div>
         </form>
     </div>
@@ -484,6 +632,9 @@ include 'includes/header.php';
                 </button>
             </div>
             <div class="modal-body">
+                <p style="font-size: 0.9rem; color: var(--gray-600); background: var(--yellow-50); border: 1px solid var(--yellow-200); padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem;">
+                    Note: Editing a schedule will reset its status to 'Pending' and require re-approval.
+                </p>
                 <input type="hidden" name="schedule_id" id="editScheduleId">
                 <input type="hidden" name="user_id_edit" id="editUserId"> 
                 
@@ -522,7 +673,7 @@ include 'includes/header.php';
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('editScheduleModal')">Cancel</button>
-                <button type="submit" name="edit_schedule" class="btn btn-primary">Save Changes</button>
+                <button type="submit" name="edit_schedule" class="btn btn-primary">Update & Resubmit</button>
             </div>
         </form>
     </div>
@@ -562,6 +713,28 @@ include 'includes/header.php';
 <script>
 const scheduleList = document.getElementById('schedule-entry-list');
 const addScheduleUserIdField = document.getElementById('addScheduleUserId');
+
+// NEW: Function to switch admin tabs
+function showScheduleTab(event, tabName) {
+    document.querySelectorAll('#schedule-card .tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('#schedule-card .tab-btn').forEach(el => el.classList.remove('active'));
+    
+    document.getElementById(tabName + 'Tab').style.display = 'block';
+    event.currentTarget.classList.add('active');
+}
+
+// NEW: Initialize correct tab display on page load
+document.addEventListener('DOMContentLoaded', function() {
+    <?php if (isAdmin()): ?>
+    document.getElementById('manageTab').style.display = '<?= $activeTab === 'manage' ? 'block' : 'none' ?>';
+    document.getElementById('pendingTab').style.display = '<?= $activeTab === 'pending' ? 'block' : 'none' ?>';
+    <?php else: ?>
+    // Non-admins only have one tab
+    document.getElementById('manageTab').style.display = 'block';
+    <?php endif; ?>
+});
+// END NEW
+
 
 function createScheduleRowHTML() {
     return `
