@@ -44,6 +44,22 @@ function requireLogin() {
         header('Location: login.php');
         exit;
     }
+    
+    // ===== NEW CHECK ADDED =====
+    // Get the name of the script being run
+    $current_page = basename($_SERVER['PHP_SELF']);
+
+    // Check for forced password change
+    if (isset($_SESSION['force_password_change']) && $_SESSION['force_password_change'] === 1) {
+        
+        // If the flag is set, redirect to change_password.php
+        // UNLESS the user is *already* on that page or logging out.
+        if ($current_page !== 'change_password.php' && $current_page !== 'logout.php') {
+            header('Location: change_password.php?first_login=1');
+            exit;
+        }
+    }
+    // ===== END OF NEW CHECK =====
 }
 
 // Function to require a user to be an Admin to access a page

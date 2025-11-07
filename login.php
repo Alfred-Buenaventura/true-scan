@@ -42,10 +42,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['first_name'] = $user['first_name'];
                 $_SESSION['last_name'] = $user['last_name'];
 
+                // ===== THIS LINE IS ADDED =====
+                $_SESSION['force_password_change'] = (int)$user['force_password_change'];
+                // ================================
+
                 logActivity($user['id'], 'Login', 'User logged in successfully.');
 
                 // Redirect based on password change requirement
-                if ($user['force_password_change']) {
+                if ($_SESSION['force_password_change']) {
                     header('Location: change_password.php?first_login=1');
                 } else {
                     header('Location: index.php');
