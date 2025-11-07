@@ -9,20 +9,21 @@ $currentUserId = $_SESSION['user_id'];
 
 
 $filterSearch = $_GET['search'] ?? ''; 
-$filterStartDate = $_GET['start_date'] ?? date('Y-m-d'); 
+// MODIFIED: Default filter to show the last 2 days for the demo
+$defaultStartDate = date('Y-m-d', strtotime('-2 days'));
+$filterStartDate = $_GET['start_date'] ?? $defaultStartDate; 
 $filterEndDate = $_GET['end_date'] ?? date('Y-m-d');   
-$filterDepartment = $_GET['department'] ?? 'all';
-$filterType = $_GET['type'] ?? 'all';
+$filterUserId = $_GET['user_id'] ?? ''; // <-- ADDED: Get selected User ID
 
 if (isAdmin()) {
     $pageTitle = 'Attendance Reports';
     $pageSubtitle = 'View and manage all user attendance records';
-} else {
-    $pageTitle = 'My Attendance';
-    $pageSubtitle = 'View your personal attendance history';
-}
-
-if (isAdmin()) {
+    
+    // --- ADDED: Fetch users for the dropdown ---
+    $allUsers = $db->query("SELECT id, faculty_id, first_name, last_name FROM users WHERE status='active' AND role != 'Admin' ORDER BY first_name")->fetch_all(MYSQLI_ASSOC);
+    // --- END ADDED ---
+    
+    // Admin stats calculation
     $today = date('Y-m-d');
     $entriesTodayResult = $db->query("SELECT COUNT(*) as c FROM attendance_records WHERE date = '$today' AND time_in IS NOT NULL");
     $entriesToday = $entriesTodayResult ? $entriesTodayResult->fetch_assoc()['c'] : 0;
@@ -32,7 +33,11 @@ if (isAdmin()) {
 
     $presentTodayResult = $db->query("SELECT COUNT(DISTINCT user_id) as c FROM attendance_records WHERE date = '$today' AND time_in IS NOT NULL");
     $presentToday = $presentTodayResult ? $presentTodayResult->fetch_assoc()['c'] : 0;
+
 } else {
+    $pageTitle = 'My Attendance';
+    $pageSubtitle = 'View your personal attendance history';
+    // User stats calculation (default values, will be overridden by demo if needed)
     $today = date('Y-m-d');
     $stmtToday = $db->prepare("SELECT time_in, time_out FROM attendance_records WHERE date = ? AND user_id = ?");
     $stmtToday->bind_param("si", $today, $currentUserId);
@@ -71,6 +76,14 @@ if (!isAdmin()) {
     $types .= "ssss";
 }
 
+// --- ADDED: Filter by user ID if admin selected one ---
+if (isAdmin() && !empty($filterUserId)) {
+    $query .= " AND ar.user_id = ?";
+    $params[] = $filterUserId;
+    $types .= "i";
+}
+// --- END ADDED ---
+
 if ($filterStartDate && $filterEndDate) {
     $query .= " AND ar.date BETWEEN ? AND ?";
     $params[] = $filterStartDate;
@@ -95,6 +108,76 @@ if ($stmt) {
     $error = "Database query error: " . $db->error;
     $records = [];
 }
+
+
+// ===================================================================
+// START: TEMPORARY EXAMPLE DATA
+// TO REMOVE: Delete this entire "if (empty($records)) { ... }" block.
+// ===================================================================
+if (empty($records)) {
+    $today_demo = date('Y-m-d');
+    $yesterday_demo = date('Y-m-d', strtotime('-1 day'));
+    $twoDaysAgo_demo = date('Y-m-d', strtotime('-2 days'));
+
+    $demo_juan = [
+        $today_demo => ['date' => $today_demo, 'time_in' => '07:28:00', 'time_out' => '17:01:00', 'status' => 'Present', 'working_hours' => 8.55, 'faculty_id' => 'FAC001', 'first_name' => 'Juan', 'last_name' => 'Dela Cruz', 'role' => 'Full Time Teacher'],
+        $yesterday_demo => ['date' => $yesterday_demo, 'time_in' => '07:46:00', 'time_out' => '17:05:00', 'status' => 'Late', 'working_hours' => 8.32, 'faculty_id' => 'FAC001', 'first_name' => 'Juan', 'last_name' => 'Dela Cruz', 'role' => 'Full Time Teacher'],
+        $twoDaysAgo_demo => ['date' => $twoDaysAgo_demo, 'time_in' => null, 'time_out' => null, 'status' => 'Absent', 'working_hours' => 0, 'faculty_id' => 'FAC001', 'first_name' => 'Juan', 'last_name' => 'Dela Cruz', 'role' => 'Full Time Teacher']
+    ];
+
+    $demo_admin = [
+        $today_demo => ['date' => $today_demo, 'time_in' => '08:01:00', 'time_out' => '17:00:00', 'status' => 'Present', 'working_hours' => 8.00, 'faculty_id' => 'ADMIN001', 'first_name' => 'Admin', 'last_name' => 'User', 'role' => 'Admin'],
+        $yesterday_demo => ['date' => $yesterday_demo, 'time_in' => '08:05:00', 'time_out' => '17:01:00', 'status' => 'Present', 'working_hours' => 8.00, 'faculty_id' => 'ADMIN001', 'first_name' => 'Admin', 'last_name' => 'User', 'role' => 'Admin']
+    ];
+    
+    $all_demo_records = [];
+
+    if (isAdmin()) {
+        // For Admin view, show both
+        $all_demo_records = $demo_juan + $demo_admin;
+        // Override admin stats
+        $today = date('Y-m-d');
+        $entriesToday = (isset($demo_juan[$today]['time_in']) ? 1 : 0) + (isset($demo_admin[$today]['time_in']) ? 1 : 0);
+        $exitsToday = (isset($demo_juan[$today]['time_out']) ? 1 : 0) + (isset($demo_admin[$today]['time_out']) ? 1 : 0);
+        $presentToday = 2; // 2 users present today
+
+    } elseif (isset($_SESSION['faculty_id']) && $_SESSION['faculty_id'] == 'FAC001') {
+        // For Juan's view, show only his
+        $all_demo_records = $demo_juan;
+        // Override Juan's stats
+        $today = date('Y-m-d');
+        $entriesToday = isset($demo_juan[$today]['time_in']) ? 1 : 0;
+        $exitsToday = isset($demo_juan[$today]['time_out']) ? 1 : 0;
+        $presentToday = 2; // 2 days present (present + late)
+    }
+
+    // Filter the demo records based on the user's selected dates
+    $records = []; // Clear the (empty) real records
+    foreach ($all_demo_records as $date => $record) {
+        if ($date >= $filterStartDate && $date <= $filterEndDate) {
+            // Also filter by selected user if admin
+            if (isAdmin() && !empty($filterUserId)) {
+                if ($record['faculty_id'] == 'FAC001' && $filterUserId == 1) { // Assuming Juan's ID is 1 for demo
+                     $records[] = $record;
+                } else if ($record['faculty_id'] == 'ADMIN001' && $filterUserId == $_SESSION['user_id']) { // Assuming Admin's ID
+                     $records[] = $record;
+                }
+                // In a real scenario, you'd match $filterUserId with $record['user_id']
+                // This demo is simplified
+            } else {
+                 $records[] = $record;
+            }
+        }
+    }
+    // Sort by date descending
+    usort($records, function($a, $b) {
+        return strtotime($b['date']) - strtotime($a['date']);
+    });
+}
+// ===================================================================
+// END: TEMPORARY EXAMPLE DATA
+// ===================================================================
+
 
 $totalRecords = count($records);
 
@@ -173,21 +256,29 @@ include 'includes/header.php';
                              <input type="date" id="dateRangeEndFilter" name="end_date" class="form-control" value="<?= htmlspecialchars($filterEndDate) ?>">
                          </div>
                     </div>
+                    
                     <div class="form-group filter-item">
-                        <label for="deptFilter">Department</label>
-                        <select id="deptFilter" name="department" class="form-control">
-                            <option value="all" <?= $filterDepartment == 'all' ? 'selected' : '' ?>>All Departments</option>
-                            </select>
+                        <label for="userFilter">Select User</label>
+                        <select id="userFilter" name="user_id" class="form-control">
+                            <option value="">All Users</option>
+                            <?php foreach ($allUsers as $user): ?>
+                                <option value="<?= $user['id'] ?>" <?= $filterUserId == $user['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($user['first_name'] . ' ' . $user['last_name']) ?> (<?= htmlspecialchars($user['faculty_id']) ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
-                </div>
+                    </div>
                 
                 <div class="filter-actions-new">
                     <button type="submit" class="btn btn-primary apply-filter-btn">
                         <i class="fa-solid fa-check"></i> Apply Filters
                     </button>
-                    <a href="print_dtr.php?start_date=<?= $filterStartDate ?>&end_date=<?= $filterEndDate ?>&search=<?= urlencode($filterSearch) ?>"
+                    <a href="#"
                         class="btn btn-primary download-btn"
-                        id="printDtrBtn">
+                        id="printDtrBtn"
+                        disabled 
+                        title="Please select a user from the dropdown to print DTR">
                         <i class="fa-solid fa-download"></i> Download DTR PDF
                     </a>
                     <a href="export_attendance.php?start_date=<?= $filterStartDate ?>&end_date=<?= $filterEndDate ?>&search=<?= urlencode($filterSearch) ?>"
@@ -234,6 +325,7 @@ include 'includes/header.php';
         </div>
     </div>
     <?php endif; ?>
+    
     <div class="card attendance-table-card">
          <div class="card-body" style="padding: 0;"> <?php if ($error): ?>
                 <div class="alert alert-error" style="margin: 1rem;"><?= htmlspecialchars($error) ?></div>
@@ -263,7 +355,7 @@ include 'includes/header.php';
                                 </div>
                             </td>
                             <td>
-                                <span class="department-cell">Administration</span> <?php // echo htmlspecialchars($record['department'] ?? 'N/A'); ?>
+                                <span class="department-cell">Administration</span> 
                             </td>
                             <?php endif; ?>
                             
@@ -277,6 +369,10 @@ include 'includes/header.php';
                                         <span><?= date('h:i A', strtotime($record['time_in'])) ?></span>
                                         <span class="status-label"><?= htmlspecialchars($record['status']) ?></span>
                                     </div>
+                                <?php elseif (isset($record['status']) && $record['status'] == 'Absent'): ?>
+                                    <div class="time-cell no-time">
+                                        <span class="status-label" style="background-color: var(--red-100); color: var(--red-700);">Absent</span>
+                                    </div>
                                 <?php else: ?>
                                     <div class="time-cell no-time">-</div>
                                 <?php endif; ?>
@@ -287,6 +383,8 @@ include 'includes/header.php';
                                         <i class="fa-solid fa-arrow-right-from-bracket"></i>
                                         <span><?= date('h:i A', strtotime($record['time_out'])) ?></span>
                                     </div>
+                                <?php elseif (isset($record['status']) && $record['status'] == 'Absent'): ?>
+                                    <div class="time-cell no-time">-</div>
                                 <?php else: ?>
                                     <div class="time-cell no-time">-</div>
                                 <?php endif; ?>
@@ -314,18 +412,40 @@ document.addEventListener('DOMContentLoaded', function() {
         let href = `print_dtr.php?start_date=${startDate}&end_date=${endDate}`;
         
         <?php if (isAdmin()): ?>
+            // ==========================================================
+            // MODIFIED: This JS will now work correctly
+            // ==========================================================
             const searchVal = searchInput ? searchInput.value : '';
-            href += `&search=${encodeURIComponent(searchVal)}`;
-        <?php else: ?>
             
+            // This selector now correctly finds the <select> element
+            const userDropdown = document.querySelector('select[name="user_id"]');
+            const selectedUserId = userDropdown ? userDropdown.value : '';
+            
+            href += `&search=${encodeURIComponent(searchVal)}`;
+            href += `&user_id=${selectedUserId}`;
+            
+            if (selectedUserId) {
+                printBtn.removeAttribute('disabled');
+                printBtn.setAttribute('title', 'Download DTR for selected user');
+            } else {
+                printBtn.setAttribute('disabled', 'true');
+                printBtn.setAttribute('title', 'Please select a user to print DTR');
+            }
+            // ==========================================================
+            // END MODIFICATION
+            // ==========================================================
+        <?php else: ?>
+            // This part for non-admins is unchanged and correct
             href += `&user_id=<?= $currentUserId ?>`;
         <?php endif; ?>
         
         printBtn.setAttribute('href', href);
     }
     
+    // Run on page load to set initial button state
     checkDtrButtonState();
 
+    // Add listeners to all filters to update the button href dynamically
     const filterInputs = document.querySelectorAll('.filter-controls-new input, .filter-controls-new select');
     filterInputs.forEach(input => {
         input.addEventListener('change', checkDtrButtonState);

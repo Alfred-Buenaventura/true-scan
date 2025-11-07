@@ -4,7 +4,6 @@ requireAdmin();
 
 $db = db();
 
-// Fetch counts for stat cards
 $totalResult = $db->query("SELECT COUNT(*) AS c FROM users WHERE status='active'");
 $totalUsers = $totalResult ? $totalResult->fetch_assoc()['c'] : 0;
 
@@ -17,8 +16,10 @@ $pendingCount = $pendingResult ? $pendingResult->fetch_assoc()['c'] : 0;
 // Fetch pending users
 $pendingUsers = $db->query("SELECT * FROM users WHERE status='active' AND fingerprint_registered=0 ORDER BY created_at DESC")->fetch_all(MYSQLI_ASSOC);
 
+$registeredUserList = $db->query("SELECT * FROM users WHERE status='active' AND fingerprint_registered=1 ORDER BY first_name ASC")->fetch_all(MYSQLI_ASSOC);
+
 $pageTitle = "Complete Registration";
-$pageSubtitle = "Complete user registration by scanning fingerprints for biometric authentication."; // Updated Subtitle
+$pageSubtitle = "Manage user fingerprint registration status.";
 include 'includes/header.php';
 ?>
 
@@ -75,7 +76,6 @@ include 'includes/header.php';
             </button>
         </div>
 
-
         <?php if (empty($pendingUsers)): ?>
             <div class="empty-state-card">
                  <i class="fa-solid fa-check-circle empty-icon"></i>
@@ -107,8 +107,43 @@ include 'includes/header.php';
             </div>
         <?php endif; ?>
     </div>
-</div>
+    
+    <div class="registered-users-section" style="margin-top: 2.5rem;">
+       
+        <h3 class="section-title" style="margin-bottom: 1.5rem;">
+            Registered Users (<?= $registeredUsers ?>)
+        </h3>
 
+
+        <?php if (empty($registeredUserList)): ?>
+            <div class="empty-state-card">
+                <i class="fa-solid fa-user-slash empty-icon"></i>
+                <p class="empty-text-title">No Registered Users</p>
+                <p class="empty-text-subtitle">No users have completed fingerprint registration yet.</p>
+            </div>
+        <?php else: ?>
+            <div class="user-cards-container">
+                <?php foreach ($registeredUserList as $u): ?>
+                    <div class="user-card" data-search-term="<?= strtolower(htmlspecialchars($u['first_name'] . ' ' . $u['last_name'] . ' ' . $u['faculty_id'] . ' ' . $u['email'])) ?>">
+                        <div class="user-card-header">
+                            <span class="user-card-status registered">Registered</span>
+                            <span class="user-card-role"><?= htmlspecialchars(str_replace(' ', '_', strtoupper($u['role']))) ?></span>
+                        </div>
+                        <div class="user-card-details">
+                            <p class="user-card-name"><?= htmlspecialchars($u['first_name'] . ' ' . $u['last_name']) ?></p>
+                            <p class="user-card-info"><?= htmlspecialchars($u['faculty_id']) ?></p>
+                            <p class="user-card-info"><?= htmlspecialchars($u['email']) ?></p>
+                        </div>
+                        <div class="user-card-registered-status">
+                            <i class="fa-solid fa-check-circle"></i>
+                            Registered
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+    </div>
 
 <div id="notifyModal" class="modal">
     <div class="modal-content modal-small">
@@ -139,7 +174,7 @@ include 'includes/header.php';
 
 
 <script>
-// --- Modal Helper Functions (Added for reliability) ---
+
 function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.style.display = 'flex';
@@ -148,12 +183,10 @@ function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.style.display = 'none';
 }
-// --- End Added Functions ---
 
-// Simple live search functionality
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('userSearchInput');
-    const userCards = document.querySelectorAll('.user-card');
+    const userCards = document.querySelectorAll('.user-card'); // This selector gets ALL cards
 
     if (searchInput) {
         searchInput.addEventListener('input', function() {
@@ -171,7 +204,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// NEW SCRIPT for notification modal
+// NEW SCRIPT for notification modal (Unchanged)
 function sendNotifications() {
     const notifyBtn = document.getElementById('confirmNotifyBtn');
     const statusMessage = document.getElementById('notify-status-message');
@@ -193,7 +226,7 @@ function sendNotifications() {
             statusMessage.textContent = data.message;
             statusMessage.className = 'alert alert-success';
             notifyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Done';
-            // Close modal after 2 seconds
+            
             setTimeout(() => {
                 closeModal('notifyModal');
                 notifyBtn.disabled = false;

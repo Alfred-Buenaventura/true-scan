@@ -20,8 +20,6 @@ if (!$notificationId) {
 
 $db = db();
 try {
-    // We include user_id in the WHERE clause for security.
-    // This ensures a user can only mark *their own* notifications as read.
     $stmt = $db->prepare("UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?");
     $stmt->bind_param("ii", $notificationId, $userId);
     $stmt->execute();

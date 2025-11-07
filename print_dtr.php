@@ -1,68 +1,24 @@
 <?php
-require_once 'config.php';
-requireLogin(); // Ensure user is logged in
 
-$db = db();
+$fullName = "DELA CRUZ, JUAN P.";
+$monthName = "November";
+$year = "2025";
+$daysInMonth = 30; 
 
-// Get parameters from URL
-$userId = $_GET['user_id'] ?? 0;
-$startDate = $_GET['start_date'] ?? date('Y-m-01');
-
-// Validate User ID
-if (empty($userId)) {
-    // Check if the logged-in user is NOT an admin and is trying to print their own DTR
-    if (!isAdmin()) {
-        $userId = $_SESSION['user_id'];
-    } else {
-        // Show a friendly error page instead of die()
-        $pageTitle = 'Error';
-        $pageSubtitle = 'Cannot generate DTR';
-        include 'includes/header.php';
-        echo '<div class="main-body">';
-        echo '<div class="alert alert-error" style="background-color: var(--red-50); color: var(--red-600); border: 1px solid var(--red-200); padding: 1.5rem; border-radius: 12px;">';
-        echo '<h3 style="font-size: 1.2rem; font-weight: 600; color: var(--red-700); margin-bottom: 0.5rem;">No User Selected</h3>';
-        echo '<p style="color: var(--red-600);">As an administrator, you must select a specific user from the dropdown on the reports page before you can print a DTR.</p>';
-        echo '</div>';
-        echo '<a href="attendance_reports.php" class="btn btn-primary" style="margin-top: 1rem;"><i class="fa-solid fa-arrow-left"></i> Back to Reports</a>';
-        echo '</div>';
-        include 'includes/footer.php';
-        exit; // Stop further execution
-    }
-}
-
-// Get User Details
-$user = getUser($userId);
-if (!$user) {
-    die("User not found.");
-}
-// Format full name: "DELA CRUZ, JUAN P."
-$fullName = strtoupper($user['last_name'] . ', ' . $user['first_name'] . ' ' . ($user['middle_name'] ? substr($user['middle_name'], 0, 1) . '.' : ''));
-
-// Get Month and Year from start date
-$monthTimestamp = strtotime($startDate);
-$monthName = date('F', $monthTimestamp);
-$year = date('Y', $monthTimestamp);
-$daysInMonth = date('t', $monthTimestamp);
-$monthStartDate = date('Y-m-01', $monthTimestamp);
-$monthEndDate = date('Y-m-t', $monthTimestamp);
-
-// Get Attendance Records for the entire month
-$stmt = $db->prepare("
-    SELECT * FROM attendance_records
-    WHERE user_id = ?
-    AND date BETWEEN ? AND ?
-    ORDER BY date ASC
-");
-$stmt->bind_param("iss", $userId, $monthStartDate, $monthEndDate);
-$stmt->execute();
-$recordsResult = $stmt->get_result();
-
-// Process records into an associative array for easy lookup
-$records = [];
-while ($row = $recordsResult->fetch_assoc()) {
-    $day = date('j', strtotime($row['date'])); // Day of the month (1-31)
-    $records[$day] = $row;
-}
+$records = [
+    3 => [
+        'date' => '2025-11-03',
+        'time_in' => '07:58:00',
+        'time_out' => '17:02:00',
+        'working_hours' => 8.07
+    ],
+    4 => [
+        'date' => '2025-11-04',
+        'time_in' => '08:05:00',
+        'time_out' => '17:01:00',
+        'working_hours' => 7.93
+    ]
+];
 
 ?>
 <!DOCTYPE html>
@@ -71,23 +27,25 @@ while ($row = $recordsResult->fetch_assoc()) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DTR - <?= htmlspecialchars($fullName) ?></title>
-    <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    </head>
-<body class="dtr-body"> <div class="print-controls">
+    
+</head>
+<body class="dtr-body"> 
+    
+    <div class="print-controls">
         <button class="btn btn-primary" onclick="window.print()">
             <i class="fa-solid fa-print"></i>
             Print DTR
         </button>
         <button class="btn btn-secondary back-link" onclick="history.back()">
             <i class="fa-solid fa-arrow-left"></i>
-            Back to Reports
+            Back
         </button>
     </div>
 
-    <div style="display: flex; justify-content: center; gap: 2rem;">
+    <div class="dtr-container-wrapper">
 
-        <?php for ($i = 0; $i < 2; $i++): // Loop to create two identical forms ?>
+        <?php for ($i = 0; $i < 2; $i++): ?>
         <div class="dtr-container">
             <div class="dtr-header">
                 <h3>CS Form 48</h3>
@@ -113,7 +71,7 @@ while ($row = $recordsResult->fetch_assoc()) {
                 </tr>
                 <tr>
                     <td class="label">Saturdays</td>
-                    <td class="value"></td>
+                    <td class_name="value"></td>
                 </tr>
             </table>
 
@@ -149,18 +107,24 @@ while ($row = $recordsResult->fetch_assoc()) {
                         if ($day <= $daysInMonth && isset($records[$day])) {
                             $rec = $records[$day];
 
-                            // This is a simplified logic. We assume time_in is AM Arrival
-                            // and time_out is PM Departure, as your database doesn't
-                            // store the 4 separate time points.
-
+                            
                             if ($rec['time_in']) {
-                                $am_in = date('g:i', strtotime($rec['time_in']));
+                                $time_in_obj = strtotime($rec['time_in']);
+                                if ($time_in_obj < strtotime('12:00:00')) {
+                                    $am_in = date('g:i', $time_in_obj);
+                                } else {
+                                    $pm_in = date('g:i', $time_in_obj);
+                                }
                             }
                             if ($rec['time_out']) {
-                                $pm_out = date('g:i', strtotime($rec['time_out']));
+                                 $time_out_obj = strtotime($rec['time_out']);
+                                 if ($time_out_obj > strtotime('12:00:00')) {
+                                     $pm_out = date('g:i', $time_out_obj);
+                                 } else {
+                                     $am_out = date('g:i', $time_out_obj);
+                                 }
                             }
-
-                            // Calculate total hours/minutes for the day
+                        
                             if ($rec['working_hours']) {
                                 $wh = floatval($rec['working_hours']);
                                 $day_hours = floor($wh);
@@ -170,8 +134,7 @@ while ($row = $recordsResult->fetch_assoc()) {
                                 $totalMinutes += $day_minutes;
                             }
                         } elseif ($day > $daysInMonth) {
-                            // Day is outside the current month (e.g., 31st in Feb)
-                            // We can fill this to show it's not applicable.
+                            
                             $am_in = '<div style="background: #eee; height: 100%; width: 100%;">-</div>';
                             $am_out = '<div style="background: #eee; height: 100%; width: 100%;">-</div>';
                             $pm_in = '<div style="background: #eee; height: 100%; width: 100%;">-</div>';
@@ -190,7 +153,7 @@ while ($row = $recordsResult->fetch_assoc()) {
                     <?php endfor; ?>
 
                     <?php
-                    // Consolidate minutes to hours for the total
+                    
                     $totalHours += floor($totalMinutes / 60);
                     $totalMinutes = $totalMinutes % 60;
                     ?>
